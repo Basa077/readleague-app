@@ -12,6 +12,7 @@
 
 # testing
 /coverage
+/e2e-output
 
 # next.js
 /.next/
@@ -39,3 +40,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+.vercel
+.env*
