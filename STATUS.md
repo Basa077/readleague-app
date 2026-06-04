@@ -54,10 +54,18 @@ promote/relegate readers and unlock reward books.
 
 ## Run locally
 ```powershell
-npm run dev          # http://localhost:3000  (uses .env.local — already configured)
-npm run db:seed      # reseed demo data (coord + readers, leagues, books)
-npm run e2e          # full Playwright walkthrough (see WARNING below)
+npm run dev                       # http://localhost:3000  (uses .env.local)
+node scripts/smoke-login.mjs      # quick headless login check (coord → /admin)
+npm run db:seed                   # reseed demo data (coord + readers, leagues, books)
+npm run e2e                       # full Playwright walkthrough (see WARNING below)
 ```
+
+## Troubleshooting
+- **"SESSION_SECRET is not set" on login** — `.env.local` had an empty `SESSION_SECRET`
+  (fixed 2026-06-04 with a random 96-char value; login verified locally AND on prod).
+  If you ever recreate `.env.local` / re-run `vercel env pull`, set `SESSION_SECRET=`
+  to any long random string and restart `npm run dev`. (Prod's secret lives in the
+  Vercel dashboard and is already set.)
 
 ## Open items / next steps
 1. **Re-run e2e** — the last run (2026-06-03 08:24) failed only at step 1, a transient
