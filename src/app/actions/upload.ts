@@ -6,6 +6,7 @@ import { eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { requireUser, requireCoordinator } from "@/lib/auth";
+import { applyApprovalBonus, autoReviewBook } from "@/lib/approval";
 
 const MAX_FILE = 25 * 1024 * 1024; // 25 MB
 
@@ -17,7 +18,7 @@ const metaSchema = z.object({
   year: z.coerce.number().int().optional(),
 });
 
-export type UploadState = { error?: string; ok?: boolean; bookId?: number };
+export type UploadState = { error?: string; ok?: boolean; bookId?: number; autoApproved?: boolean; reviewNote?: string };
 
 async function uploadFile(file: File | null): Promise<{ url: string | null; format: string | null }> {
   if (!file || file.size === 0) return { url: null, format: null };
@@ -51,6 +52,9 @@ export async function readerUploadBookAction(_prev: UploadState, formData: FormD
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
 
   const file = formData.get("file") as File | null;
+  // Read the first bytes for the automated review before uploading.
+  const head = file && file.size > 0 ? new Uint8Array(await file.slice(0, 8).arrayBuffer()) : new Uint8Array();
+
   let fileInfo;
   try {
     fileInfo = await uploadFile(file);
@@ -59,20 +63,32 @@ export async function readerUploadBookAction(_prev: UploadState, formData: FormD
   }
   if (!fileInfo.url) return { error: "Please attach a PDF or EPUB file" };
 
+  // Automated review agent — approve good books instantly, else leave pending.
+  const review = await autoReviewBook({
+    head,
+    size: file!.size,
+    format: fileInfo.format!,
+    title: parsed.data.title,
+    author: parsed.data.author,
+  });
+
   const [book] = await db
     .insert(schema.books)
     .values({
       ...parsed.data,
       format: fileInfo.format!,
       fileUrl: fileInfo.url,
-      status: "pending",
+      status: review.approved ? "approved" : "pending",
       uploaderId: user.id,
     })
     .returning();
 
+  if (review.approved) await applyApprovalBonus(user.id);
+
   revalidatePath("/app/upload");
   revalidatePath("/admin/approvals");
-  return { ok: true, bookId: book.id };
+  revalidatePath("/app");
+  return { ok: true, bookId: book.id, autoApproved: review.approved, reviewNote: review.reason };
 }
 
 /** Coordinator creates a book → approved immediately, lock options included. */

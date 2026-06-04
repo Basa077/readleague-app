@@ -6,7 +6,7 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { requireCoordinator } from "@/lib/auth";
 import { LEAGUE_LADDER, generateNextLeague } from "@/lib/leagues";
-import { UPLOAD_APPROVAL_BONUS } from "@/lib/points";
+import { applyApprovalBonus } from "@/lib/approval";
 
 export type ActionState = { error?: string; ok?: boolean; message?: string };
 
@@ -20,42 +20,8 @@ export async function approveBookAction(_prev: ActionState, formData: FormData):
 
   await db.update(schema.books).set({ status: "approved" }).where(eq(schema.books.id, id));
 
-  // Uploader bonus
-  if (book.uploaderId) {
-    await db
-      .update(schema.users)
-      .set({
-        weeklyPts: sql`${schema.users.weeklyPts} + ${UPLOAD_APPROVAL_BONUS}`,
-        totalPts: sql`${schema.users.totalPts} + ${UPLOAD_APPROVAL_BONUS}`,
-        booksUploaded: sql`${schema.users.booksUploaded} + 1`,
-        cycleUploads: sql`${schema.users.cycleUploads} + 1`,
-      })
-      .where(eq(schema.users.id, book.uploaderId));
-
-    // Check ticket threshold for the uploader's current league
-    const [uploader] = await db
-      .select()
-      .from(schema.users)
-      .where(eq(schema.users.id, book.uploaderId))
-      .limit(1);
-    if (uploader?.leagueId) {
-      const [league] = await db
-        .select()
-        .from(schema.leagues)
-        .where(eq(schema.leagues.id, uploader.leagueId))
-        .limit(1);
-      if (league && uploader.cycleUploads >= league.uploadsRequired) {
-        // Award one ticket and reset their cycle-upload counter so they need to do it again
-        await db
-          .update(schema.users)
-          .set({
-            tickets: sql`${schema.users.tickets} + 1`,
-            cycleUploads: 0,
-          })
-          .where(eq(schema.users.id, uploader.id));
-      }
-    }
-  }
+  // Uploader bonus (shared with the automated review on upload)
+  if (book.uploaderId) await applyApprovalBonus(book.uploaderId);
 
   revalidatePath("/admin/approvals");
   revalidatePath("/admin/books");

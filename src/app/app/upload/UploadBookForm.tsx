@@ -87,7 +87,9 @@ export function UploadBookForm() {
       )}
       {state.ok && (
         <div className="text-xs px-3 py-2 rounded-md" style={{ background: "var(--accent-soft)", color: "var(--accent-ink)" }}>
-          Submitted — your coordinator will approve it shortly. You&apos;ll get +2 weekly pts on approval.
+          {state.autoApproved
+            ? "✓ Approved automatically — your book is live in the library now, and you earned +2 weekly pts."
+            : "Submitted for review — a coordinator will take a quick look shortly."}
         </div>
       )}
 
