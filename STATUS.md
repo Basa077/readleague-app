@@ -7,6 +7,17 @@
 _Last updated: 2026-06-04_
 
 ## 🆕 Latest session (2026-06-04)
+- **📚 Reading FIXED + library reseeded.** The old seeded book URLs (Standard Ebooks)
+  returned HTML, not EPUBs → every book showed "Error loading book". Fixes:
+  - New **`/api/book-file/[id]`** proxy streams the file through our origin (fixes CORS,
+    forces correct content-type, enforces access). Reader loads via it. Verified: books
+    render on local AND production (screenshot).
+  - **Library now has ~300 real Project Gutenberg books** (`npm run db:books`). To load
+    more/fewer: `npm run db:books -- 800`. Curated classics insert first (always), then
+    bulk popular titles via Gutendex. Keeps users/leagues; rewards preserved.
+  - Note: first open of a book can take ~10–25s (we download it from Gutenberg, then it's
+    edge-cached). You do NOT need to upload a book yourself — the library is pre-filled.
+- **Login: show/hide password toggle** added (helps avoid autofill/typo confusion).
 - **Back buttons** added to book-detail and upload pages (`src/components/BackButton.tsx`).
   Reader already had "← Close".
 - **Password rules** strengthened: 8+ chars, a letter, and a number — enforced in
