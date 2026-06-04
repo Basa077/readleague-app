@@ -1,4 +1,5 @@
 import { UploadBookForm } from "./UploadBookForm";
+import { BackButton } from "@/components/BackButton";
 import { db, schema } from "@/db";
 import { eq, desc } from "drizzle-orm";
 import { requireUser } from "@/lib/auth";
@@ -20,6 +21,8 @@ export default async function UploadPage() {
 
   return (
     <div className="max-w-2xl mx-auto px-4 sm:px-6 py-6 space-y-6 rl-fadeup">
+      <BackButton fallbackHref="/app" label="Back" />
+
       <header>
         <h1 className="rl-serif text-3xl">Add a book</h1>
         <p className="text-sm mt-1" style={{ color: "var(--ink-2)" }}>

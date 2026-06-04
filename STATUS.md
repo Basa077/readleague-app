@@ -4,7 +4,23 @@
 > after a reboot, open Claude Code in this folder and say *"read STATUS.md, where did
 > we leave off?"* — that's all you need.
 
-_Last updated: 2026-06-03_
+_Last updated: 2026-06-04_
+
+## 🆕 Latest session (2026-06-04)
+- **Back buttons** added to book-detail and upload pages (`src/components/BackButton.tsx`).
+  Reader already had "← Close".
+- **Password rules** strengthened: 8+ chars, a letter, and a number — enforced in
+  `src/app/actions/auth.ts` and shown as a live ✓ checklist on signup.
+- **Google sign-in built** (`src/lib/google.ts`, `src/app/api/auth/google/*`). Hand-rolled
+  OAuth that reuses the existing cookie session — **no DB migration** (new Google users get a
+  random password hash; existing emails are linked). The "Continue with Google" button is
+  **gated**: it only appears once `GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET` are set.
+  - 👉 **ACTION FOR YOU:** follow **`SETUP-GOOGLE.md`** (≈5 min) to create the Google
+    credential and paste it into `.env.local`, then restart `npm run dev`. That's the only
+    thing standing between you and a working Google login.
+- Verified: `npx tsc --noEmit` clean + `npm run build` passes (21 routes).
+- The MetaMask error you saw is a **browser wallet extension**, not our app — ignore it
+  (or use an Incognito window).
 
 ## What this is
 ReadLeague — a gamified reading club. Readers read books, earn points, climb
@@ -50,10 +66,11 @@ npm run e2e          # full Playwright walkthrough (see WARNING below)
    - ⚠️ **WARNING:** `npm run e2e` mutates the **production** DB — it creates books and
      **closes the weekly cycle** (irreversible). Run against a local/preview DB, or
      accept the prod side effects, before running.
-2. **Commit the work** — everything except the Create-Next-App initial commit is still
-   uncommitted on `master` (all of `src/app/(public|admin|app|actions)`, `src/db`,
-   `src/lib`, `src/components`, `drizzle.config.ts`, `scripts/`). Nothing is checkpointed.
-3. (Optional polish) badges UI, profile charts review, empty-state copy.
+2. ~~Commit the work~~ — ✅ DONE (commits on `master`). No git remote pushed yet — local only.
+3. **Finish Google sign-in** — do the 5-minute `SETUP-GOOGLE.md` steps (create credential,
+   paste into `.env.local`, restart). For the LIVE site, also add the two env vars in the
+   Vercel dashboard and redeploy.
+4. (Optional polish) badges UI, profile charts review, empty-state copy.
 
 ## Related artifacts (older, superseded by this app)
 - `C:\Users\gaisi\ReadLeague.html` — original design prototype (static, design-canvas)

@@ -4,6 +4,7 @@ import { db, schema } from "@/db";
 import { and, eq } from "drizzle-orm";
 import { requireUser } from "@/lib/auth";
 import { BookCover } from "@/components/BookCover";
+import { BackButton } from "@/components/BackButton";
 import { canUserReadBook, lockDescription } from "@/lib/unlock";
 
 export default async function BookDetailPage(props: { params: Promise<{ id: string }> }) {
@@ -24,6 +25,8 @@ export default async function BookDetailPage(props: { params: Promise<{ id: stri
 
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 space-y-6 rl-fadeup">
+      <BackButton fallbackHref="/app/library" label="Back to library" />
+
       <div className="flex gap-5 items-start">
         <BookCover title={book.title} author={book.author} genre={book.genre} size={160} locked={!allowed} reward={book.lockType !== "open" && allowed} />
         <div className="flex-1 min-w-0 space-y-2">

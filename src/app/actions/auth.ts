@@ -11,7 +11,11 @@ const signupSchema = z.object({
   email: z.string().email(),
   handle: z.string().min(3).max(30).regex(/^[a-z0-9_.-]+$/i, "letters, numbers, _ . - only"),
   displayName: z.string().min(2).max(60),
-  password: z.string().min(8),
+  password: z
+    .string()
+    .min(8, "Password must be at least 8 characters")
+    .regex(/[A-Za-z]/, "Password must include a letter")
+    .regex(/[0-9]/, "Password must include a number"),
   role: z.enum(["reader", "coordinator"]).default("reader"),
 });
 
