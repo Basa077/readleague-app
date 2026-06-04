@@ -22,14 +22,18 @@ export default async function ReadPage(props: { params: Promise<{ id: string }> 
     .where(and(eq(schema.userProgress.userId, user.id), eq(schema.userProgress.bookId, book.id)))
     .limit(1);
 
+  const format = book.format ?? (book.fileUrl.toLowerCase().endsWith(".epub") ? "EPUB" : "PDF");
+
   return (
     <ReaderShell
       book={{
         id: book.id,
         title: book.title,
         author: book.author,
-        fileUrl: book.fileUrl,
-        format: book.format ?? (book.fileUrl.toLowerCase().endsWith(".epub") ? "EPUB" : "PDF"),
+        // Load through our same-origin proxy (CORS-safe + correct content-type).
+        // The .epub/.pdf suffix tells epub.js / pdf.js how to open it.
+        fileUrl: `/api/book-file/${book.id}.${format === "PDF" ? "pdf" : "epub"}`,
+        format,
         pages: book.pages,
       }}
       resume={{

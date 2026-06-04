@@ -17,6 +17,7 @@ const OAUTH_ERRORS: Record<string, string> = {
 export function LoginForm({ googleEnabled }: { googleEnabled: boolean }) {
   const [state, formAction, pending] = useActionState(loginAction, initialState);
   const [oauthError, setOauthError] = useState<string | null>(null);
+  const [showPw, setShowPw] = useState(false);
 
   useEffect(() => {
     const code = new URLSearchParams(window.location.search).get("error");
@@ -55,7 +56,28 @@ export function LoginForm({ googleEnabled }: { googleEnabled: boolean }) {
           </div>
           <div className="space-y-1.5">
             <label className="text-xs" style={{ color: "var(--ink-2)" }}>Password</label>
-            <input name="password" type="password" required className="rl-input" autoComplete="current-password" />
+            <div style={{ position: "relative" }}>
+              <input
+                name="password"
+                type={showPw ? "text" : "password"}
+                required
+                className="rl-input"
+                autoComplete="current-password"
+                style={{ paddingRight: 60 }}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPw((v) => !v)}
+                className="text-[11px]"
+                style={{
+                  position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)",
+                  background: "transparent", border: "none", cursor: "pointer", color: "var(--accent-ink)",
+                }}
+                aria-label={showPw ? "Hide password" : "Show password"}
+              >
+                {showPw ? "Hide" : "Show"}
+              </button>
+            </div>
           </div>
 
           {state.error && (

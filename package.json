@@ -9,6 +9,7 @@
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
     "db:seed": "tsx --env-file=.env.local src/db/seed.ts",
+    "db:books": "tsx --env-file=.env.local scripts/seed-books.ts",
     "db:reset": "tsx --env-file=.env.local src/db/reset.ts",
     "e2e": "node scripts/e2e.mjs"
   },
