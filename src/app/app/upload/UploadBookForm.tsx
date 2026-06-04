@@ -20,7 +20,7 @@ export function UploadBookForm() {
   }, [state.ok]);
 
   return (
-    <form ref={formRef} action={formAction} encType="multipart/form-data" className="rl-card p-5 space-y-4">
+    <form ref={formRef} action={formAction} className="rl-card p-5 space-y-4">
       <div className="space-y-1.5">
         <label className="text-xs uppercase tracking-wider" style={{ color: "var(--ink-3)" }}>Title</label>
         <input name="title" required maxLength={200} className="rl-input" placeholder="e.g. Things Fall Apart" />

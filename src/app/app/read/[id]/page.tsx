@@ -23,6 +23,12 @@ export default async function ReadPage(props: { params: Promise<{ id: string }> 
     .limit(1);
 
   const format = book.format ?? (book.fileUrl.toLowerCase().endsWith(".epub") ? "EPUB" : "PDF");
+  // Books bundled into public/books/ are same-origin static files (fast, served
+  // from the CDN) — load them directly. Anything else (e.g. reward books still on
+  // an external URL) goes through the proxy, which is CORS-safe and access-gated.
+  const fileUrl = book.fileUrl.startsWith("/")
+    ? book.fileUrl
+    : `/api/book-file/${book.id}.${format === "PDF" ? "pdf" : "epub"}`;
 
   return (
     <ReaderShell
@@ -30,9 +36,7 @@ export default async function ReadPage(props: { params: Promise<{ id: string }> 
         id: book.id,
         title: book.title,
         author: book.author,
-        // Load through our same-origin proxy (CORS-safe + correct content-type).
-        // The .epub/.pdf suffix tells epub.js / pdf.js how to open it.
-        fileUrl: `/api/book-file/${book.id}.${format === "PDF" ? "pdf" : "epub"}`,
+        fileUrl,
         format,
         pages: book.pages,
       }}

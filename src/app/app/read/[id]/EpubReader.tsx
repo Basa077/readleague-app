@@ -57,21 +57,23 @@ export function EpubReader({
         getRendition={(rendition: Rendition) => {
           renditionRef.current = rendition;
           rendition.themes.fontSize("110%");
-          // Build locations once for page mapping
-          rendition.book.ready.then(() => {
-            const locs = rendition.book.locations as unknown as {
-              generate: (chars: number) => Promise<unknown>;
-              length: () => number;
-            };
-            return locs.generate(1024);
-          }).then(() => {
-            const total = (rendition.book.locations as unknown as { length: () => number }).length();
-            setEstTotal(total);
-            onTotalPages(total);
-          }).catch(() => {});
-
           rendition.hooks.content.register((contents: Contents) => {
             contents.document.documentElement.style.color = "var(--ink)";
+          });
+          // Build the page-location index in the BACKGROUND, after the first
+          // page is already on screen. Generating it eagerly walks the entire
+          // book and blocks the initial render for many seconds on full novels.
+          // A larger chunk size is also much faster to compute.
+          rendition.book.ready.then(() => {
+            setTimeout(() => {
+              const locs = rendition.book.locations as unknown as {
+                generate: (chars: number) => Promise<unknown>;
+                length: () => number;
+              };
+              locs.generate(1600)
+                .then(() => { const total = locs.length(); setEstTotal(total); onTotalPages(total); })
+                .catch(() => {});
+            }, 1200);
           });
         }}
         epubInitOptions={{ openAs: "epub" }}

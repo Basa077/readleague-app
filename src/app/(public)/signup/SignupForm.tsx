@@ -77,14 +77,6 @@ export function SignupForm({ googleEnabled }: { googleEnabled: boolean }) {
               })}
             </ul>
           </div>
-          <div className="space-y-1.5">
-            <label className="text-xs" style={{ color: "var(--ink-2)" }}>Role</label>
-            <select name="role" className="rl-input" defaultValue="reader">
-              <option value="reader">Reader</option>
-              <option value="coordinator">Coordinator (admin)</option>
-            </select>
-          </div>
-
           {state.error && (
             <div className="text-xs px-3 py-2 rounded-md" style={{ background: "var(--claret-soft)", color: "var(--claret)" }}>
               {state.error}

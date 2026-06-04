@@ -16,7 +16,6 @@ const signupSchema = z.object({
     .min(8, "Password must be at least 8 characters")
     .regex(/[A-Za-z]/, "Password must include a letter")
     .regex(/[0-9]/, "Password must include a number"),
-  role: z.enum(["reader", "coordinator"]).default("reader"),
 });
 
 const loginSchema = z.object({
@@ -32,12 +31,11 @@ export async function signupAction(_prev: AuthState, formData: FormData): Promis
     handle: String(formData.get("handle") || "").toLowerCase().trim(),
     displayName: String(formData.get("displayName") || "").trim(),
     password: String(formData.get("password") || ""),
-    role: (formData.get("role") as string) || "reader",
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
   }
-  const { email, handle, displayName, password, role } = parsed.data;
+  const { email, handle, displayName, password } = parsed.data;
 
   const existing = await db
     .select()
@@ -50,16 +48,15 @@ export async function signupAction(_prev: AuthState, formData: FormData): Promis
 
   const passwordHash = await bcrypt.hash(password, 10);
 
-  // Auto-assign new readers to Tuareg (entry league)
-  const leagueId = role === "reader" ? "tuareg" : null;
-
+  // Public sign-up always creates a reader in the entry (Tuareg) league.
+  // Coordinators are provisioned manually (never self-serve) — see scripts/set-password.ts.
   const [user] = await db
     .insert(schema.users)
-    .values({ email, handle, displayName, passwordHash, role, leagueId })
+    .values({ email, handle, displayName, passwordHash, role: "reader", leagueId: "tuareg" })
     .returning();
 
   await createSession(user.id, user.role);
-  redirect(user.role === "coordinator" ? "/admin" : "/app");
+  redirect("/app");
 }
 
 export async function loginAction(_prev: AuthState, formData: FormData): Promise<AuthState> {
