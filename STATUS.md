@@ -6,6 +6,20 @@
 
 _Last updated: 2026-06-04_
 
+## 🆕 Latest (2026-06-04, pt 2) — ready for friends to test
+- **📈 Books now load in ~1–2s** (were 13–28s). Cause: every open did a live round-trip
+  to Project Gutenberg. Fix: bundled **50 curated public-domain EPUBs as static files in
+  `public/books/`** (served from Vercel's CDN); reader loads same-origin static files
+  directly (`scripts/bundle-books.ts`, `npm run bundle-books -- N`). Library trimmed to
+  those 50 fast books + 3 reward books. (Vercel **Blob isn't provisioned** — token empty in
+  both `.env.local` and Vercel — so static hosting was the no-setup path. To scale to
+  hundreds, provision a Blob store and we can host more.)
+- **Upload form console error fixed** (removed `encType`; React 19 sets it automatically).
+- **Sign-up is readers-only** (server-enforced in `auth.ts`, not just UI) so the public link
+  can't let strangers self-register as admins. The demo **coord** login still works for you;
+  secure it any time with `npm run set-password -- coord@readleague.app "NewPass"`.
+- Live + verified fast on production: **https://readleague-app.vercel.app**
+
 ## 🆕 Latest session (2026-06-04)
 - **📚 Reading FIXED + library reseeded.** The old seeded book URLs (Standard Ebooks)
   returned HTML, not EPUBs → every book showed "Error loading book". Fixes:
