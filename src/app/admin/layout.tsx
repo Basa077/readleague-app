@@ -5,7 +5,7 @@ import { LogoutButton } from "@/components/LogoutButton";
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const user = await getCurrentUser();
-  if (!user) redirect("/login");
+  if (!user) redirect("/api/logout"); // clear stale cookie → login (avoids redirect loop)
   if (user.role !== "coordinator") redirect("/app");
 
   const links = [

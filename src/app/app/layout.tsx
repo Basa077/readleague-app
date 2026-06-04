@@ -7,7 +7,9 @@ import { SideNav } from "@/components/SideNav";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const user = await getCurrentUser();
-  if (!user) redirect("/login");
+  // Stale/invalid session (signed cookie but no matching user) → clear it and go
+  // to login, instead of bouncing with the middleware into a redirect loop.
+  if (!user) redirect("/api/logout");
 
   return (
     <div className="min-h-screen md:flex" style={{ background: "var(--paper)" }}>
