@@ -4,6 +4,7 @@ import { and, eq, desc } from "drizzle-orm";
 import { requireUser } from "@/lib/auth";
 import { BookCover } from "@/components/BookCover";
 import { BookShelf } from "@/components/BookShelf";
+import { SearchBar } from "@/components/SearchBar";
 import { canUserReadBook } from "@/lib/unlock";
 
 const GENRE_LABELS: Record<string, string> = {
@@ -79,8 +80,13 @@ export default async function DiscoverPage() {
 
   return (
     <div className="space-y-6 sm:space-y-8 pb-2 rl-fadeup">
-      {/* Hero */}
+      {/* Search */}
       <section className="px-4 sm:px-6 pt-4 sm:pt-6">
+        <SearchBar />
+      </section>
+
+      {/* Hero */}
+      <section className="px-4 sm:px-6">
         <div className="rl-card rl-hero-gradient p-5 sm:p-8 flex flex-col sm:flex-row gap-6 items-start">
           <div className="flex-1 min-w-0 space-y-3">
             <div className="text-[10px] uppercase tracking-wider" style={{ color: "var(--ink-3)" }}>
