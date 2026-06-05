@@ -4,6 +4,7 @@ import { useActionState, useEffect, useState } from "react";
 import Link from "next/link";
 import { loginAction, type AuthState } from "@/app/actions/auth";
 import { GoogleButton } from "@/components/GoogleButton";
+import { Wordmark } from "@/components/Logo";
 
 const initialState: AuthState = {};
 
@@ -27,8 +28,10 @@ export function LoginForm({ googleEnabled }: { googleEnabled: boolean }) {
   return (
     <div className="min-h-screen flex items-center justify-center px-4">
       <div className="rl-card w-full max-w-md p-8 space-y-6 rl-fadeup">
-        <div className="space-y-1 text-center">
-          <Link href="/" className="rl-serif text-2xl">ReadLeague</Link>
+        <div className="space-y-2 text-center">
+          <div className="flex justify-center">
+            <Wordmark href="/" size={32} textClassName="text-2xl" />
+          </div>
           <div className="text-sm" style={{ color: "var(--ink-3)" }}>Welcome back.</div>
         </div>
 

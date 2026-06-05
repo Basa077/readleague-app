@@ -81,7 +81,7 @@ export default async function DiscoverPage() {
   return (
     <div className="space-y-6 sm:space-y-8 pb-2 rl-fadeup">
       {/* Search */}
-      <section className="px-4 sm:px-6 pt-4 sm:pt-6">
+      <section className="px-4 sm:px-6 pt-4 sm:pt-6" data-tour="search">
         <SearchBar />
       </section>
 

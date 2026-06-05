@@ -1,9 +1,10 @@
-import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { LogoutButton } from "@/components/LogoutButton";
 import { BottomNav } from "@/components/BottomNav";
 import { SideNav } from "@/components/SideNav";
+import { Wordmark } from "@/components/Logo";
+import { Tour } from "@/components/Tour";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const user = await getCurrentUser();
@@ -27,7 +28,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <div className="flex-1 min-w-0 flex flex-col min-h-screen">
         {/* Mobile top bar */}
         <header className="md:hidden sticky top-0 z-30 px-4 py-3 flex items-center justify-between border-b backdrop-blur" style={{ borderColor: "var(--line)", background: "color-mix(in oklab, var(--paper) 90%, transparent)" }}>
-          <Link href="/app" className="rl-serif text-lg">ReadLeague</Link>
+          <Wordmark href="/app" size={24} textClassName="text-lg" />
           <div className="flex items-center gap-2 text-xs">
             <span className="rl-pill is-active rl-mono">{user.weeklyPts} pts</span>
             {user.tickets > 0 && <span className="rl-pill" title="Promotion tickets">🎟 {user.tickets}</span>}
@@ -40,6 +41,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         {/* Bottom nav — mobile only */}
         <BottomNav />
       </div>
+
+      {/* First-run guided tour (readers) */}
+      <Tour />
     </div>
   );
 }

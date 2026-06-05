@@ -3,7 +3,9 @@ import { db, schema } from "@/db";
 import { eq, desc, gte } from "drizzle-orm";
 import { requireUser } from "@/lib/auth";
 import { LogoutButton } from "@/components/LogoutButton";
+import { TourReplayButton } from "@/components/TourReplayButton";
 import { Sparkline, BarChart } from "@/components/charts";
+import { BADGES, earnedBadges } from "@/lib/badges";
 
 function daysAgo(n: number) { return new Date(Date.now() - n * 86400_000); }
 
@@ -91,6 +93,18 @@ export default async function ProfilePage() {
       </div>
 
       {/* Charts */}
+      {last30.length === 0 ? (
+        <section className="rl-card p-8 text-center space-y-2">
+          <div className="text-2xl" aria-hidden>📊</div>
+          <div className="rl-serif text-lg">Your reading stats live here</div>
+          <p className="text-sm" style={{ color: "var(--ink-2)" }}>
+            Open a book and log a session — pages per day, reading speed and your weekly form
+            will start filling in.
+          </p>
+          <Link href="/app" className="rl-btn inline-block mt-1">Find a book</Link>
+        </section>
+      ) : (
+      <>
       <section className="grid lg:grid-cols-3 gap-4">
         <div className="rl-card p-4 lg:col-span-2">
           <div className="flex items-baseline justify-between mb-2">
@@ -140,6 +154,37 @@ export default async function ProfilePage() {
           </div>
         </div>
       </section>
+      </>
+      )}
+
+      {/* Badges */}
+      <section>
+        <div className="flex items-baseline justify-between mb-3">
+          <h2 className="rl-serif text-2xl">Badges</h2>
+          <span className="text-xs rl-mono" style={{ color: "var(--ink-3)" }}>
+            {earnedBadges(user).length} / {BADGES.length}
+          </span>
+        </div>
+        <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
+          {BADGES.map((b) => {
+            const got = b.earned(user);
+            return (
+              <div
+                key={b.slug}
+                className="rl-card p-3 text-center"
+                title={got ? b.name : b.hint}
+                style={{ opacity: got ? 1 : 0.5 }}
+              >
+                <div className="text-2xl" style={{ filter: got ? "none" : "grayscale(1)" }} aria-hidden>{b.icon}</div>
+                <div className="text-[11px] mt-1 font-medium leading-tight">{b.name}</div>
+                <div className="text-[9px] mt-0.5 leading-tight" style={{ color: "var(--ink-3)" }}>
+                  {got ? "Earned" : b.hint}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
 
       {/* Recent activity */}
       <section>
@@ -177,7 +222,8 @@ export default async function ProfilePage() {
         </section>
       )}
 
-      <div className="pt-2">
+      <div className="pt-2 grid sm:grid-cols-2 gap-2">
+        <TourReplayButton className="rl-btn w-full" />
         <LogoutButton className="rl-btn w-full" />
       </div>
     </div>

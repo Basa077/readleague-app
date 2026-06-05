@@ -1,6 +1,5 @@
 "use server";
 
-import { put } from "@vercel/blob";
 import { db, schema } from "@/db";
 import { eq, sql } from "drizzle-orm";
 import { z } from "zod";
@@ -8,7 +7,9 @@ import { revalidatePath } from "next/cache";
 import { requireUser, requireCoordinator } from "@/lib/auth";
 import { applyApprovalBonus, autoReviewBook } from "@/lib/approval";
 
-const MAX_FILE = 25 * 1024 * 1024; // 25 MB
+// Files are uploaded directly to Vercel Blob from the browser (see
+// src/lib/blob-client.ts + /api/blob/upload). These actions receive the
+// resulting blob URL and metadata, then create the book row.
 
 const metaSchema = z.object({
   title: z.string().min(1).max(200),
@@ -18,28 +19,27 @@ const metaSchema = z.object({
   year: z.coerce.number().int().optional(),
 });
 
+const fileSchema = z.object({
+  fileUrl: z.string().url(),
+  format: z.enum(["PDF", "EPUB"]),
+  fileSize: z.coerce.number().int().nonnegative(),
+});
+
 export type UploadState = { error?: string; ok?: boolean; bookId?: number; autoApproved?: boolean; reviewNote?: string };
 
-async function uploadFile(file: File | null): Promise<{ url: string | null; format: string | null }> {
-  if (!file || file.size === 0) return { url: null, format: null };
-  if (file.size > MAX_FILE) throw new Error("File too large (max 25 MB)");
-
-  const lowerName = file.name.toLowerCase();
-  let format: string | null = null;
-  if (lowerName.endsWith(".pdf") || file.type === "application/pdf") format = "PDF";
-  else if (lowerName.endsWith(".epub") || file.type === "application/epub+zip") format = "EPUB";
-  else throw new Error("Only PDF or EPUB files are supported");
-
-  const safeName = `${Date.now()}-${file.name.replace(/[^a-z0-9.\-_]+/gi, "_")}`;
-  const blob = await put(`books/${safeName}`, file, {
-    access: "public",
-    addRandomSuffix: false,
-    contentType: file.type || (format === "PDF" ? "application/pdf" : "application/epub+zip"),
-  });
-  return { url: blob.url, format };
+/** Read the first bytes of an already-uploaded blob so the automated review can
+ * check the file's magic bytes. */
+async function headBytes(url: string): Promise<Uint8Array> {
+  try {
+    const r = await fetch(url, { headers: { Range: "bytes=0-7" }, signal: AbortSignal.timeout(8000) });
+    if (!r.ok && r.status !== 206) return new Uint8Array();
+    return new Uint8Array(await r.arrayBuffer());
+  } catch {
+    return new Uint8Array();
+  }
 }
 
-/** Reader uploads a book → goes to pending queue. */
+/** Reader finalizes a book upload → automated review decides instant-approve vs pending. */
 export async function readerUploadBookAction(_prev: UploadState, formData: FormData): Promise<UploadState> {
   const user = await requireUser();
   const parsed = metaSchema.safeParse({
@@ -51,23 +51,20 @@ export async function readerUploadBookAction(_prev: UploadState, formData: FormD
   });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
 
-  const file = formData.get("file") as File | null;
-  // Read the first bytes for the automated review before uploading.
-  const head = file && file.size > 0 ? new Uint8Array(await file.slice(0, 8).arrayBuffer()) : new Uint8Array();
+  const fileParsed = fileSchema.safeParse({
+    fileUrl: formData.get("fileUrl"),
+    format: formData.get("format"),
+    fileSize: formData.get("fileSize") || 0,
+  });
+  if (!fileParsed.success) return { error: "Please attach a PDF or EPUB file." };
 
-  let fileInfo;
-  try {
-    fileInfo = await uploadFile(file);
-  } catch (e) {
-    return { error: e instanceof Error ? e.message : "Upload failed" };
-  }
-  if (!fileInfo.url) return { error: "Please attach a PDF or EPUB file" };
+  const head = await headBytes(fileParsed.data.fileUrl);
 
   // Automated review agent — approve good books instantly, else leave pending.
   const review = await autoReviewBook({
     head,
-    size: file!.size,
-    format: fileInfo.format!,
+    size: fileParsed.data.fileSize,
+    format: fileParsed.data.format,
     title: parsed.data.title,
     author: parsed.data.author,
   });
@@ -76,8 +73,8 @@ export async function readerUploadBookAction(_prev: UploadState, formData: FormD
     .insert(schema.books)
     .values({
       ...parsed.data,
-      format: fileInfo.format!,
-      fileUrl: fileInfo.url,
+      format: fileParsed.data.format,
+      fileUrl: fileParsed.data.fileUrl,
       status: review.approved ? "approved" : "pending",
       uploaderId: user.id,
     })
@@ -97,6 +94,8 @@ const adminCreateSchema = metaSchema.extend({
   lockLeagueId: z.string().nullable().optional(),
   lockPosition: z.coerce.number().int().min(1).max(20).optional(),
   lockNote: z.string().max(200).optional(),
+  fileUrl: z.string().url().optional().or(z.literal("")),
+  format: z.enum(["PDF", "EPUB"]).optional(),
 });
 
 export async function adminCreateBookAction(_prev: UploadState, formData: FormData): Promise<UploadState> {
@@ -111,16 +110,12 @@ export async function adminCreateBookAction(_prev: UploadState, formData: FormDa
     lockLeagueId: formData.get("lockLeagueId") || null,
     lockPosition: formData.get("lockPosition") || undefined,
     lockNote: formData.get("lockNote") || undefined,
+    fileUrl: formData.get("fileUrl") || "",
+    format: formData.get("format") || undefined,
   });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
 
-  const file = formData.get("file") as File | null;
-  let fileInfo;
-  try {
-    fileInfo = await uploadFile(file);
-  } catch (e) {
-    return { error: e instanceof Error ? e.message : "Upload failed" };
-  }
+  const fileUrl = parsed.data.fileUrl && parsed.data.fileUrl.length > 0 ? parsed.data.fileUrl : null;
 
   const [created] = await db
     .insert(schema.books)
@@ -130,8 +125,8 @@ export async function adminCreateBookAction(_prev: UploadState, formData: FormDa
       genre: parsed.data.genre,
       description: parsed.data.description,
       year: parsed.data.year,
-      format: fileInfo.format,
-      fileUrl: fileInfo.url,
+      format: fileUrl ? parsed.data.format ?? null : null,
+      fileUrl,
       status: "approved",
       lockType: parsed.data.lockType,
       lockLeagueId:
@@ -152,10 +147,6 @@ export async function adminCreateBookAction(_prev: UploadState, formData: FormDa
 export async function saveBookPagesAction(bookId: number, pages: number): Promise<void> {
   await requireUser();
   if (!Number.isInteger(pages) || pages <= 0 || pages > 10000) return;
-  await db
-    .update(schema.books)
-    .set({ pages })
-    .where(eq(schema.books.id, bookId));
-  // also: don't shrink an existing accurate count
+  await db.update(schema.books).set({ pages }).where(eq(schema.books.id, bookId));
   void sql;
 }

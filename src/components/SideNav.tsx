@@ -3,13 +3,14 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LogoutButton } from "./LogoutButton";
+import { Wordmark } from "./Logo";
 
 const ITEMS = [
-  { href: "/app",          label: "Discover" },
-  { href: "/app/library",  label: "Library" },
-  { href: "/app/upload",   label: "Add a book" },
-  { href: "/app/leagues",  label: "Leagues" },
-  { href: "/app/profile",  label: "Profile" },
+  { href: "/app",          label: "Discover",   tour: "nav-discover" },
+  { href: "/app/library",  label: "Library",    tour: "nav-library" },
+  { href: "/app/upload",   label: "Add a book", tour: "nav-add" },
+  { href: "/app/leagues",  label: "Leagues",    tour: "nav-leagues" },
+  { href: "/app/profile",  label: "Profile",    tour: "nav-profile" },
 ];
 
 export function SideNav({
@@ -22,8 +23,8 @@ export function SideNav({
   return (
     <aside className="hidden md:flex w-64 sticky top-0 self-start h-screen flex-col border-r" style={{ borderColor: "var(--line)", background: "var(--paper-2)" }}>
       <div className="px-5 py-5 border-b" style={{ borderColor: "var(--line)" }}>
-        <Link href="/app" className="rl-serif text-xl block">ReadLeague</Link>
-        <div className="text-[10px] uppercase tracking-wider mt-0.5" style={{ color: "var(--ink-3)" }}>
+        <Wordmark href="/app" size={26} textClassName="text-xl" />
+        <div className="text-[10px] uppercase tracking-wider mt-1.5" style={{ color: "var(--ink-3)" }}>
           {user.leagueId ?? "no league"} · {user.weeklyPts} pts
         </div>
       </div>
@@ -34,6 +35,7 @@ export function SideNav({
             <Link
               key={l.href}
               href={l.href}
+              data-tour={l.tour}
               className="block px-3 py-2 rounded-md transition"
               style={{
                 color: active ? "var(--accent-ink)" : "var(--ink-2)",

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/session";
+import { Wordmark } from "@/components/Logo";
 
 export default async function HomePage() {
   const session = await getSession();
@@ -12,7 +13,7 @@ export default async function HomePage() {
     <main className="min-h-screen flex flex-col">
       <header className="px-6 py-5 flex items-center justify-between border-b" style={{ borderColor: "var(--line)" }}>
         <div className="flex items-center gap-2">
-          <span className="rl-serif text-xl">ReadLeague</span>
+          <Wordmark href={null} size={28} textClassName="text-xl" />
           <span className="rl-pill">beta</span>
         </div>
         <nav className="flex items-center gap-3">

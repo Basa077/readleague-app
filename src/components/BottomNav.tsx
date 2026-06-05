@@ -4,11 +4,11 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const ITEMS = [
-  { href: "/app",          label: "Discover", icon: DiscoverIcon, match: (p: string) => p === "/app" || p.startsWith("/app/books") },
-  { href: "/app/library",  label: "Library",  icon: LibraryIcon,  match: (p: string) => p.startsWith("/app/library") },
-  { href: "/app/upload",   label: "Add",      icon: AddIcon,      match: (p: string) => p.startsWith("/app/upload"), highlight: true },
-  { href: "/app/leagues",  label: "Leagues",  icon: TrophyIcon,   match: (p: string) => p.startsWith("/app/leagues") },
-  { href: "/app/profile",  label: "Profile",  icon: ProfileIcon,  match: (p: string) => p.startsWith("/app/profile") },
+  { href: "/app",          label: "Discover", icon: DiscoverIcon, tour: "nav-discover", match: (p: string) => p === "/app" || p.startsWith("/app/books") },
+  { href: "/app/library",  label: "Library",  icon: LibraryIcon,  tour: "nav-library",  match: (p: string) => p.startsWith("/app/library") },
+  { href: "/app/upload",   label: "Add",      icon: AddIcon,      tour: "nav-add",      match: (p: string) => p.startsWith("/app/upload"), highlight: true },
+  { href: "/app/leagues",  label: "Leagues",  icon: TrophyIcon,   tour: "nav-leagues",  match: (p: string) => p.startsWith("/app/leagues") },
+  { href: "/app/profile",  label: "Profile",  icon: ProfileIcon,  tour: "nav-profile",  match: (p: string) => p.startsWith("/app/profile") },
 ];
 
 export function BottomNav() {
@@ -25,6 +25,7 @@ export function BottomNav() {
             <Link
               key={item.href}
               href={item.href}
+              data-tour={item.tour}
               className="flex flex-col items-center gap-0.5 py-1.5 rounded-md transition"
               style={{
                 color: active ? "var(--accent-ink)" : "var(--ink-3)",

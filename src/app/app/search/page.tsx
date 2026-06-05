@@ -4,6 +4,7 @@ import { and, eq, or, ilike, desc } from "drizzle-orm";
 import { requireUser } from "@/lib/auth";
 import { BookCover } from "@/components/BookCover";
 import { SearchBar } from "@/components/SearchBar";
+import { RequestBook } from "@/components/RequestBook";
 import { canUserReadBook } from "@/lib/unlock";
 
 export default async function SearchPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
@@ -56,14 +57,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
             </div>
           </section>
         ) : (
-          <div className="rl-card p-8 text-center space-y-2">
-            <div className="rl-serif text-xl">No match for “{q}”</div>
-            <p className="text-sm" style={{ color: "var(--ink-2)" }}>
-              We don’t have that one in the library yet. Try a different title or author —
-              or ask your coordinator to add it.
-            </p>
-            <Link href="/app" className="rl-btn inline-block mt-2">Browse the library</Link>
-          </div>
+          <RequestBook query={q} />
         )
       )}
 

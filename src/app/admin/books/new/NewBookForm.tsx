@@ -1,8 +1,9 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { adminCreateBookAction, type UploadState } from "@/app/actions/upload";
+import { uploadBookFile } from "@/lib/blob-client";
 
 const init: UploadState = {};
 
@@ -11,13 +12,41 @@ export function NewBookForm({ leagues }: { leagues: { id: string; name: string }
   const [state, formAction, pending] = useActionState(adminCreateBookAction, init);
   const [lockType, setLockType] = useState<"open" | "league_winner" | "league_top_n" | "admin_grant">("open");
   const [fileName, setFileName] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [clientError, setClientError] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (state.ok && state.bookId) router.push(`/admin/books/${state.bookId}`);
   }, [state, router]);
 
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setClientError(null);
+    const form = e.currentTarget;
+    const fd = new FormData(form);
+    fd.delete("file");
+    const file = fileRef.current?.files?.[0];
+    if (file) {
+      setUploading(true);
+      try {
+        const uploaded = await uploadBookFile(file);
+        fd.set("fileUrl", uploaded.url);
+        fd.set("format", uploaded.format);
+      } catch (err) {
+        setUploading(false);
+        setClientError(err instanceof Error ? err.message : "Upload failed. Please try again.");
+        return;
+      }
+      setUploading(false);
+    }
+    formAction(fd);
+  }
+
+  const busy = uploading || pending;
+
   return (
-    <form action={formAction} encType="multipart/form-data" className="rl-card p-5 space-y-4">
+    <form onSubmit={handleSubmit} className="rl-card p-5 space-y-4">
       <div className="grid sm:grid-cols-2 gap-3">
         <div className="space-y-1.5">
           <label className="text-xs uppercase tracking-wider" style={{ color: "var(--ink-3)" }}>Title</label>
@@ -46,10 +75,11 @@ export function NewBookForm({ leagues }: { leagues: { id: string; name: string }
       </div>
 
       <div className="space-y-2">
-        <label className="text-xs uppercase tracking-wider" style={{ color: "var(--ink-3)" }}>File · PDF or EPUB · max 25 MB (optional but recommended)</label>
+        <label className="text-xs uppercase tracking-wider" style={{ color: "var(--ink-3)" }}>File · PDF or EPUB · max 50 MB (optional but recommended)</label>
         <label htmlFor="file" className="rl-card-sunken block px-4 py-5 text-center text-sm cursor-pointer transition hover:bg-[var(--paper-3)]" style={{ borderRadius: "var(--radius-md)" }}>
           {fileName ? <span className="font-medium">{fileName}</span> : <span className="rl-serif">Choose a file</span>}
           <input
+            ref={fileRef}
             id="file"
             name="file"
             type="file"
@@ -89,14 +119,14 @@ export function NewBookForm({ leagues }: { leagues: { id: string; name: string }
         <input name="lockNote" maxLength={200} className="rl-input" placeholder="e.g. End-of-season reward" />
       </div>
 
-      {state.error && (
+      {(clientError || state.error) && (
         <div className="text-xs px-3 py-2 rounded-md" style={{ background: "var(--claret-soft)", color: "var(--claret)" }}>
-          {state.error}
+          {clientError || state.error}
         </div>
       )}
 
-      <button type="submit" disabled={pending} className="rl-btn rl-btn-primary w-full">
-        {pending ? "Creating…" : "Create book"}
+      <button type="submit" disabled={busy} className="rl-btn rl-btn-primary w-full">
+        {uploading ? "Uploading file…" : pending ? "Creating…" : "Create book"}
       </button>
     </form>
   );

@@ -4,7 +4,50 @@
 > after a reboot, open Claude Code in this folder and say *"read STATUS.md, where did
 > we leave off?"* — that's all you need.
 
-_Last updated: 2026-06-04_
+_Last updated: 2026-06-05_
+
+## 🆕 Latest (2026-06-05) — brand, onboarding, auto-library & big uploads
+A big feature session. All of the below typecheck clean and `npm run build` is green (32 routes).
+
+- **🛡️ Logo + brand identity.** New `src/components/Logo.tsx` — a heraldic green shield
+  cradling an open book (heraldry = the kingdom leagues; book = reading), plus a
+  two-tone "Read**League**" wordmark. Wired into the sidebar, mobile top bar, landing,
+  login & signup. Favicon added at `src/app/icon.svg` (served automatically).
+- **🧭 First-run guided tour.** `src/components/Tour.tsx` — a custom, dependency-free
+  spotlight tour that auto-runs once on a reader's first visit to `/app` (remembered in
+  `localStorage` `rl-tour-v1`), is skippable, and replayable from Profile → "Replay the
+  tour". Anchors via `data-tour` attrs on the search bar + nav (works on both the mobile
+  bottom-nav and desktop sidebar). Verified with screenshots.
+- **📚 Request-a-book (auto-find & add).** When a search returns nothing, readers can
+  click **"Find & add"** and we fetch a real, free public-domain EPUB and add it to the
+  library instantly. Engine: `src/lib/booksource.ts` — **two providers** for resilience
+  (Gutendex/Project Gutenberg **and** Open Library → Internet Archive), every candidate
+  **validated** (real EPUB magic bytes) before insert, run in parallel. Action:
+  `src/app/actions/request-book.ts`; UI: `src/components/RequestBook.tsx`.
+  ⚠️ NOTE: **Gutendex was timing out** during this session, so the Internet Archive
+  provider is currently carrying the feature (verified live: Frankenstein, Pride &
+  Prejudice, etc. resolve to validated EPUBs with covers + years). Books are added **open
+  (readable now)**; `AUTO_LOCK_THRESHOLD = 20000` in `src/lib/config.ts` is the switch to
+  start gating requested books behind league rules once the catalogue is large.
+- **⬆️ Big uploads via direct-to-Blob (reader + admin).** The Blob store **is** provisioned
+  on prod (confirmed `vercel env ls`: `BLOB_READ_WRITE_TOKEN` etc. exist for Prod+Preview —
+  the old "not provisioned" note was stale). Uploads now go **straight from the browser to
+  Vercel Blob** via `@vercel/blob/client` (`src/lib/blob-client.ts` + token route
+  `src/app/api/blob/upload/route.ts`), bypassing Vercel's ~4.5MB Serverless Function body
+  cap. Limit raised to **50MB**. Server actions (`actions/upload.ts`) now finalise from the
+  blob URL (fetching head bytes for the auto-review). ⚠️ Local uploads still won't work
+  (sensitive token is empty in `.env.local`) — this is a **prod-only** path; verify after deploy.
+- **✨ Polish.** Real **badges** on Profile (derived from stats in `src/lib/badges.ts`, so
+  they're always in sync — earned vs locked-with-hint), and a friendly **empty-state** for
+  the profile charts when a user has no sessions yet.
+- **🔐 Google sign-in:** code re-verified correct & ready — still just needs the credential
+  (see `SETUP-GOOGLE.md`). Nothing to change in code.
+
+### Open items after this session
+1. **Deploy** to pick up all the above (`vercel --prod`), then verify a real **file upload**
+   on prod (the one thing that can't be tested locally).
+2. **Google:** do the `SETUP-GOOGLE.md` steps when you want the button live.
+3. **e2e** still mutates prod + closes the cycle — unchanged warning below.
 
 ## 🆕 Latest (2026-06-04, pt 2) — ready for friends to test
 - **📈 Books now load in ~1–2s** (were 13–28s). Cause: every open did a live round-trip
