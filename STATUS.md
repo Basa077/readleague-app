@@ -43,10 +43,19 @@ A big feature session. All of the below typecheck clean and `npm run build` is g
 - **🔐 Google sign-in:** code re-verified correct & ready — still just needs the credential
   (see `SETUP-GOOGLE.md`). Nothing to change in code.
 
+### Shipped + verified on prod (2026-06-05)
+- **Committed + pushed** to GitHub (master, commits `1787a36` + `5a1cbf8`) and **deployed**
+  (`vercel --prod`, READY, aliased to readleague-app.vercel.app).
+- **Verified live on prod:** logo + favicon, first-run tour auto-runs, login, **a real file
+  upload** (browser→Blob → auto-approved ✓ — the path that can't be tested locally), and
+  **request-a-book** (added "The Wonderful Wizard of Oz" from Internet Archive). The upload
+  test book was cleaned out of the DB afterward.
+- **request-a-book latency** optimised from ~25s → ~4–5s (parallel candidate validation).
+
 ### Open items after this session
-1. **Deploy** to pick up all the above (`vercel --prod`), then verify a real **file upload**
-   on prod (the one thing that can't be tested locally).
-2. **Google:** do the `SETUP-GOOGLE.md` steps when you want the button live.
+1. **Google:** do the `SETUP-GOOGLE.md` steps when you want the button live (code is ready).
+2. Tiny: the upload test left one orphaned 87KB blob in storage (can't delete without the
+   prod token locally) — harmless.
 3. **e2e** still mutates prod + closes the cycle — unchanged warning below.
 
 ## 🆕 Latest (2026-06-04, pt 2) — ready for friends to test
