@@ -42,13 +42,27 @@ async function isLiveEpub(url: string): Promise<boolean> {
     const r = await fetch(url, {
       headers: { Range: "bytes=0-3", "User-Agent": UA },
       redirect: "follow",
-      signal: AbortSignal.timeout(9000),
+      signal: AbortSignal.timeout(5000),
     });
     if (!r.ok && r.status !== 206) return false;
     const buf = new Uint8Array(await r.arrayBuffer());
     return buf[0] === 0x50 && buf[1] === 0x4b; // "PK"
   } catch {
     return false;
+  }
+}
+
+/** Validate candidate URLs concurrently and return the metadata of the first
+ * one that's a live EPUB — so latency is a single check, not the sum. */
+async function firstLive(cands: { url: string; book: FoundBook }[]): Promise<FoundBook | null> {
+  if (!cands.length) return null;
+  const checks = cands.map((c) =>
+    isLiveEpub(c.url).then((ok) => (ok ? c.book : Promise.reject(new Error("dead"))))
+  );
+  try {
+    return await Promise.any(checks);
+  } catch {
+    return null;
   }
 }
 
@@ -95,7 +109,7 @@ async function fromGutendex(query: string): Promise<FoundBook | null> {
     // so we fall through to Open Library rather than making the reader wait.
     const r = await fetch(`https://gutendex.com/books?search=${encodeURIComponent(query)}`, {
       headers: { "User-Agent": UA },
-      signal: AbortSignal.timeout(6000),
+      signal: AbortSignal.timeout(4000),
     });
     if (r.ok) data = (await r.json()) as { results: GBook[] };
   } catch {
@@ -104,27 +118,25 @@ async function fromGutendex(query: string): Promise<FoundBook | null> {
   if (!data?.results?.length) return null;
 
   const nq = norm(query);
-  const ranked = data.results
+  const cands = data.results
     .filter((b) => gEpub(b) && b.copyright !== true)
     .map((b) => ({ b, s: gScore(b, nq) }))
-    .sort((a, b) => b.s - a.s);
-
-  for (const { b } of ranked.slice(0, 4)) {
-    const url = gEpub(b)!;
-    if (await isLiveEpub(url)) {
-      return {
+    .sort((a, b) => b.s - a.s)
+    .slice(0, 4)
+    .map(({ b }) => ({
+      url: gEpub(b)!,
+      book: {
         title: (b.title || "Untitled").slice(0, 200),
         author: gAuthor(b.authors?.[0]?.name),
         genre: pickGenre([...(b.subjects || []), ...(b.bookshelves || [])]),
-        fileUrl: url,
+        fileUrl: gEpub(b)!,
         coverUrl: gCover(b),
         year: null, // Gutendex exposes author birth year, not publication year
-        source: "gutenberg",
+        source: "gutenberg" as const,
         sourceId: String(b.id),
-      };
-    }
-  }
-  return null;
+      },
+    }));
+  return firstLive(cands);
 }
 
 // ── Provider 2: Open Library → Internet Archive ───────────────────────────────
@@ -145,7 +157,7 @@ async function fromOpenLibrary(query: string): Promise<FoundBook | null> {
       "title,author_name,first_publish_year,ia,ebook_access,cover_i,subject";
     const r = await fetch(
       `https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&fields=${fields}&limit=12`,
-      { headers: { "User-Agent": UA }, signal: AbortSignal.timeout(9000) }
+      { headers: { "User-Agent": UA }, signal: AbortSignal.timeout(6000) }
     );
     if (r.ok) data = (await r.json()) as { docs: OLDoc[] };
   } catch {
@@ -154,28 +166,25 @@ async function fromOpenLibrary(query: string): Promise<FoundBook | null> {
   if (!data?.docs?.length) return null;
 
   // Only fully public-domain ("public") items with an Internet Archive scan.
-  const candidates = data.docs.filter((d) => d.ebook_access === "public" && d.ia?.length);
-
-  for (const d of candidates.slice(0, 6)) {
-    for (const ia of (d.ia || []).slice(0, 2)) {
-      const url = `https://archive.org/download/${ia}/${ia}.epub`;
-      if (await isLiveEpub(url)) {
-        return {
+  const cands: { url: string; book: FoundBook }[] = [];
+  for (const d of data.docs.filter((d) => d.ebook_access === "public" && d.ia?.length).slice(0, 6)) {
+    for (const ia of (d.ia || []).slice(0, 1)) {
+      cands.push({
+        url: `https://archive.org/download/${ia}/${ia}.epub`,
+        book: {
           title: (d.title || "Untitled").slice(0, 200),
           author: d.author_name?.[0] ?? "Unknown",
           genre: pickGenre(d.subject || []),
-          fileUrl: url,
-          coverUrl: d.cover_i
-            ? `https://covers.openlibrary.org/b/id/${d.cover_i}-M.jpg`
-            : null,
+          fileUrl: `https://archive.org/download/${ia}/${ia}.epub`,
+          coverUrl: d.cover_i ? `https://covers.openlibrary.org/b/id/${d.cover_i}-M.jpg` : null,
           year: d.first_publish_year ?? null,
           source: "archive",
           sourceId: ia,
-        };
-      }
+        },
+      });
     }
   }
-  return null;
+  return firstLive(cands);
 }
 
 /**
