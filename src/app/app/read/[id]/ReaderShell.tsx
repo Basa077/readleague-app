@@ -34,6 +34,16 @@ export function ReaderShell({
   const [saving, setSaving] = useState(false);
   const [pointsEarned, setPointsEarned] = useState<number | null>(null);
 
+  // One-time coach hint so the highlight/notes tools are discoverable.
+  const [showHint, setShowHint] = useState(false);
+  useEffect(() => {
+    try { if (localStorage.getItem("rl-annot-hint-v1") !== "done") setShowHint(true); } catch {}
+  }, []);
+  const dismissHint = () => {
+    setShowHint(false);
+    try { localStorage.setItem("rl-annot-hint-v1", "done"); } catch {}
+  };
+
   // Track delta — pages read THIS session
   const sessionStartPage = useRef(resume.currentPage);
   const lastCfiRef = useRef<string | null>(resume.cfi);
@@ -131,6 +141,14 @@ export function ReaderShell({
       </header>
 
       <div className="flex-1 min-h-0 overflow-hidden relative">
+        {showHint && (
+          <div className="absolute top-2 left-1/2 -translate-x-1/2 z-40 rl-card px-3 py-2 flex items-center gap-3 shadow-lg max-w-[94%]" style={{ background: "var(--paper-2)" }}>
+            <span className="text-[12px] leading-snug" style={{ color: "var(--ink)" }}>
+              🖍️ <strong>New — highlight &amp; take notes:</strong> select any text to highlight it in a colour (top-right pen), then add a note. Tap <strong>✎ Notes</strong> to revisit them.
+            </span>
+            <button onClick={dismissHint} className="rl-btn rl-btn-primary text-[11px] shrink-0">Got it</button>
+          </div>
+        )}
         {book.format === "EPUB" ? (
           <EpubReader
             url={book.fileUrl}

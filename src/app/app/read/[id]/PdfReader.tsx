@@ -57,6 +57,7 @@ export function PdfReader({
   const [editingId, setEditingId] = useState<number | null>(null);
   const [showNotes, setShowNotes] = useState(false);
   const editing = editingId != null ? items.find((a) => a.id === editingId) ?? null : null;
+  const myCount = items.filter((a) => a.mine).length;
 
   const pageEls = useRef<Map<number, HTMLDivElement>>(new Map());
   const ratios = useRef<Map<number, number>>(new Map());
@@ -201,12 +202,14 @@ export function PdfReader({
       </div>
 
       {/* Annotation tools (pen colour + notes) */}
-      <div className="absolute top-2 right-2 z-20 flex items-center gap-2 rl-card px-2 py-1.5" style={{ background: "color-mix(in oklab, var(--paper-2) 92%, transparent)" }}>
-        <span className="text-[11px] hidden sm:inline" style={{ color: "var(--ink-3)" }} title="Highlight colour">Pen</span>
+      <div className="absolute top-2 right-2 z-20 flex items-center gap-2 rl-card px-2 py-1.5 shadow-md" style={{ background: "var(--paper-2)" }}>
+        <span className="text-[11px] hidden sm:inline" style={{ color: "var(--ink-3)" }} title="Pick a colour, then select text">Highlight</span>
         <ColorSwatches active={activeColor} onPick={setActiveColor} size={18} />
         <div className="w-px h-5" style={{ background: "var(--line)" }} />
         <button onClick={addPageNote} className="rl-btn text-[11px]" title="Add a note to this page">＋ Note</button>
-        <button onClick={() => setShowNotes(true)} className="rl-btn text-[11px]" title="My highlights & notes">✎ {items.filter((a) => a.mine).length}</button>
+        <button onClick={() => setShowNotes(true)} className="rl-btn text-[11px]" title="My highlights & notes">
+          ✎ Notes{myCount > 0 ? ` · ${myCount}` : ""}
+        </button>
       </div>
 
       {/* Navigation bar */}
