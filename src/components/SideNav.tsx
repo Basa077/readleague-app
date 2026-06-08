@@ -7,6 +7,7 @@ import { Wordmark } from "./Logo";
 
 const ITEMS = [
   { href: "/app",          label: "Discover",   tour: "nav-discover" },
+  { href: "/app/feed",     label: "Feed",       tour: "nav-feed" },
   { href: "/app/library",  label: "Library",    tour: "nav-library" },
   { href: "/app/upload",   label: "Add a book", tour: "nav-add" },
   { href: "/app/leagues",  label: "Leagues",    tour: "nav-leagues" },

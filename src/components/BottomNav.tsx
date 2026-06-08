@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 
 const ITEMS = [
   { href: "/app",          label: "Discover", icon: DiscoverIcon, tour: "nav-discover", match: (p: string) => p === "/app" || p.startsWith("/app/books") },
+  { href: "/app/feed",     label: "Feed",     icon: FeedIcon,     tour: "nav-feed",     match: (p: string) => p.startsWith("/app/feed") },
   { href: "/app/library",  label: "Library",  icon: LibraryIcon,  tour: "nav-library",  match: (p: string) => p.startsWith("/app/library") },
   { href: "/app/upload",   label: "Add",      icon: AddIcon,      tour: "nav-add",      match: (p: string) => p.startsWith("/app/upload"), highlight: true },
   { href: "/app/leagues",  label: "Leagues",  icon: TrophyIcon,   tour: "nav-leagues",  match: (p: string) => p.startsWith("/app/leagues") },
@@ -17,7 +18,7 @@ export function BottomNav() {
   if (pathname.startsWith("/app/read/")) return null;
   return (
     <nav className="md:hidden fixed bottom-0 left-0 right-0 z-30 border-t backdrop-blur" style={{ background: "color-mix(in oklab, var(--paper) 90%, transparent)", borderColor: "var(--line)" }}>
-      <div className="max-w-md mx-auto grid grid-cols-5 px-1 pt-1.5 pb-2">
+      <div className="max-w-md mx-auto grid grid-cols-6 px-1 pt-1.5 pb-2">
         {ITEMS.map((item) => {
           const active = item.match(pathname);
           const Icon = item.icon;
@@ -50,6 +51,14 @@ function DiscoverIcon({ active }: { active: boolean }) {
       <rect x="3" y="4" width="7" height="16" rx="1.5" />
       <rect x="14" y="4" width="7" height="9" rx="1.5" />
       <rect x="14" y="15" width="7" height="5" rx="1.5" />
+    </svg>
+  );
+}
+function FeedIcon({ active }: { active: boolean }) {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={stroke} strokeWidth={active ? 2.2 : 1.6} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 11a9 9 0 0 1 9 9M4 4a16 16 0 0 1 16 16" />
+      <circle cx="5" cy="19" r="1.5" fill={stroke} stroke="none" />
     </svg>
   );
 }

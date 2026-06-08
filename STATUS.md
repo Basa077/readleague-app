@@ -6,6 +6,37 @@
 
 _Last updated: 2026-06-08_
 
+## 🆕 Latest (2026-06-08, pt 2) — the worldwide Feed (Phase 2 begins)
+Typechecks + `npm run build` green. New feed tables pushed to Neon. **Verified
+live in a headless browser: post → like → comment → reshare all work, 0 runtime
+errors** (test rows cleaned up). Committed; not deployed.
+
+- **🌍 `/app/feed` — a global social feed.** Readers post what they read &
+  learnt; everyone sees the newest-first worldwide stream. **Text + image** now
+  (image via the same direct-to-Blob path as books — works on prod; local needs
+  the Blob token). **Like, comment, reshare** (a reshare quotes the original
+  inline), tag a book you read, paginated "Load more". Added **Feed** to the
+  side + bottom nav.
+- **🛡️ Light moderation built in:** any reader can **Report** a post; 3 reports
+  auto-hides it; authors can delete their own, coordinators can delete any.
+- **🎥 Video = next step (Cloudflare Stream).** Schema fields (`videoUid`,
+  `videoThumb`) are in place and the composer shows a gated "Video (setup)"
+  button. To turn it on, follow **`SETUP-CLOUDFLARE.md`** (create a Stream
+  account + API token, set `CLOUDFLARE_ACCOUNT_ID` / `CLOUDFLARE_STREAM_TOKEN`),
+  then the direct-upload route + player embed get wired.
+- Files: `src/db/schema.ts` (posts/postLikes/postComments), `actions/feed.ts`,
+  `app/app/feed/{page,FeedClient,PostCard}.tsx`, `api/blob/upload-media`,
+  `lib/media-client.ts`, nav components, `lib/config.ts`.
+
+### Phase-2 still open
+- **Wire Cloudflare video** once creds exist (see SETUP-CLOUDFLARE.md).
+- **Paid/commercial books** (task #5) — still blocked on *business* calls:
+  content licensing (our catalogue is public-domain on purpose) + a payment
+  provider (Paystack/Flutterwave/MoMo suggested for Ghana). Code plumbing is
+  ready to build once those are decided.
+- A coordinator **review queue** for reported posts (currently report→auto-hide
+  + manual delete only).
+
 ## 🆕 Latest (2026-06-08) — reader gets notes, highlights & a true page view
 Typechecks + `npm run build` green (23 routes). DB migrated (`npm run db:push` applied —
 new `annotations` table is live on the shared Neon DB). **Not yet committed or deployed; not

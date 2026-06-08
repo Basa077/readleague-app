@@ -176,6 +176,57 @@ export const annotations = pgTable(
   })
 );
 
+// ── Social feed ───────────────────────────────────────────────────────────
+// A worldwide feed where readers post what they read & learnt. Text + image
+// now; `videoUid`/`videoThumb` are for Cloudflare Stream (wired separately).
+// A reshare is itself a post with `resharedFromId` pointing at the original.
+export const posts = pgTable(
+  "posts",
+  {
+    id: serial("id").primaryKey(),
+    authorId: integer("author_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    body: text("body"),                       // caption / thought
+    imageUrl: text("image_url"),              // Vercel Blob image
+    videoUid: text("video_uid"),              // Cloudflare Stream UID (later)
+    videoThumb: text("video_thumb"),          // poster image for the video
+    bookId: integer("book_id").references(() => books.id, { onDelete: "set null" }), // "I read this"
+    resharedFromId: integer("reshared_from_id"), // self-ref → posts.id (no FK; handled in app)
+    likeCount: integer("like_count").notNull().default(0),
+    commentCount: integer("comment_count").notNull().default(0),
+    reshareCount: integer("reshare_count").notNull().default(0),
+    hidden: boolean("hidden").notNull().default(false),   // moderation: hide from feed
+    reportCount: integer("report_count").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    byCreated: index("posts_created_idx").on(t.createdAt),
+    byAuthor: index("posts_author_idx").on(t.authorId),
+  })
+);
+
+export const postLikes = pgTable(
+  "post_likes",
+  {
+    id: serial("id").primaryKey(),
+    postId: integer("post_id").notNull().references(() => posts.id, { onDelete: "cascade" }),
+    userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({ uniq: uniqueIndex("post_likes_post_user_idx").on(t.postId, t.userId) })
+);
+
+export const postComments = pgTable(
+  "post_comments",
+  {
+    id: serial("id").primaryKey(),
+    postId: integer("post_id").notNull().references(() => posts.id, { onDelete: "cascade" }),
+    userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    body: text("body").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({ byPost: index("post_comments_post_idx").on(t.postId) })
+);
+
 export const announcements = pgTable("announcements", {
   id: serial("id").primaryKey(),
   title: text("title").notNull(),
@@ -195,3 +246,6 @@ export type BookUnlock = typeof bookUnlocks.$inferSelect;
 export type UserProgress = typeof userProgress.$inferSelect;
 export type Annotation = typeof annotations.$inferSelect;
 export type NewAnnotation = typeof annotations.$inferInsert;
+export type Post = typeof posts.$inferSelect;
+export type NewPost = typeof posts.$inferInsert;
+export type PostComment = typeof postComments.$inferSelect;

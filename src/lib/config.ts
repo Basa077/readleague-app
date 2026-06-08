@@ -15,3 +15,13 @@ export const AUTO_LOCK_THRESHOLD = 20000;
  * Serverless Function request-body limit — so this can comfortably exceed it.
  */
 export const MAX_BOOK_BYTES = 50 * 1024 * 1024; // 50 MB
+
+/** Max size for a feed image (uploaded browser → Vercel Blob, same as books). */
+export const MAX_IMAGE_BYTES = 8 * 1024 * 1024; // 8 MB
+
+/** Whether feed video uploads are wired up (Cloudflare Stream). Gated on creds
+ *  so the UI only offers video once the account is configured — see
+ *  SETUP-CLOUDFLARE.md. Mirrors the Google sign-in gating pattern. */
+export const CLOUDFLARE_STREAM_ENABLED = Boolean(
+  process.env.CLOUDFLARE_ACCOUNT_ID && process.env.CLOUDFLARE_STREAM_TOKEN
+);
