@@ -4,7 +4,39 @@
 > after a reboot, open Claude Code in this folder and say *"read STATUS.md, where did
 > we leave off?"* — that's all you need.
 
-_Last updated: 2026-06-05_
+_Last updated: 2026-06-08_
+
+## 🆕 Latest (2026-06-08) — reader gets notes, highlights & a true page view
+Typechecks + `npm run build` green (23 routes). DB migrated (`npm run db:push` applied —
+new `annotations` table is live on the shared Neon DB). **Not yet committed or deployed; not
+yet click-tested in a browser** — boot `npm run dev` and open any book to try it.
+
+- **📖 PDF "extended" continuous-scroll view.** The PDF reader used to show one page at a
+  time; now it defaults to a **continuous vertical scroll** (every page stacked, lazy-rendered
+  so big PDFs stay fast, current page auto-tracked for points). Toggle "▤ One page" for the
+  old single-page mode; "▦ Pages" still opens the thumbnail grid. (`PdfReader.tsx`.)
+- **🖍️ Private highlights + notes (PDF & EPUB).** Pick a pen colour, drag across text → a
+  highlight is saved. Each colour has a **built-in meaning**: 🟡 Important · 🟢 Loved this ·
+  🔵 Learn this · 🩷 I disagree · 🟣 Question (legend in `src/lib/annotations.ts`). Tap a
+  highlight (or the ✎ panel) to attach a **note** ("what I liked / want others to learn").
+  **Private by default**; each note has a **"Share with readers of this book"** toggle that
+  surfaces it to others on that book. "＋ Note" adds a page-level comment. New table
+  `annotations` (`src/db/schema.ts`), server actions `src/app/actions/annotations.ts`, client
+  hook `useAnnotations.ts`, UI in `AnnotationUI.tsx`. PDF anchors via normalized rects+page;
+  EPUB via epubjs CFI ranges (native `rendition.annotations`).
+- **™️ Citation-on-copy (anti-plagiarism).** Copying text from any book now appends an
+  APA-flavoured citation (Author (Year). Title. Read on ReadLeague.) to the clipboard, so
+  passages leave the app already attributed. `buildCitation` in `src/lib/annotations.ts`.
+
+### Open items after this session
+1. **Click-test in a browser** (highlight drag, note save, share toggle, copy→citation) then
+   **commit + `vercel --prod`**. Nothing committed yet this session.
+2. The EPUB "Pages" overview was renamed to **"Chapters"** (it lists TOC sections).
+3. **Phase 2 / the bigger vision (discussed, not started):** a **worldwide social feed**
+   (posts + video + like/comment/reshare — needs a video host like Mux/Cloudflare Stream +
+   moderation; start text/image first) and **paid/commercial books** (blocked on content
+   *licensing* — our catalogue is public-domain on purpose — plus a payment provider;
+   Paystack/Flutterwave/MoMo for Ghana over Stripe). Tracked as tasks #4/#5.
 
 ## 🆕 Latest (2026-06-05) — brand, onboarding, auto-library & big uploads
 A big feature session. All of the below typecheck clean and `npm run build` is green (32 routes).

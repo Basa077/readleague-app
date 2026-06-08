@@ -3,15 +3,28 @@
 import { useEffect, useRef, useState } from "react";
 import { ReactReader } from "react-reader";
 import type { Contents, Rendition } from "epubjs";
+import { colorMeta, citedClipboardText, type HighlightColorKey } from "@/lib/annotations";
+import { useAnnotations, type Anno } from "./useAnnotations";
+import { ColorSwatches, NoteEditor, NotesPanel } from "./AnnotationUI";
+
+type TocItem = { label: string; href: string; depth: number };
+type EpubAnnotations = {
+  add: (type: string, cfiRange: string, data: object, cb: (e: Event) => void, className: string, styles: object) => void;
+  remove: (cfiRange: string, type: string) => void;
+};
 
 export function EpubReader({
   url,
   initialCfi,
+  bookId,
+  citation,
   onCfi,
   onTotalPages,
 }: {
   url: string;
   initialCfi?: string;
+  bookId: number;
+  citation: string;
   onCfi: (cfi: string, page: number) => void;
   onTotalPages: (total: number) => void;
 }) {
@@ -19,12 +32,63 @@ export function EpubReader({
   const renditionRef = useRef<Rendition | null>(null);
   const [estPage, setEstPage] = useState(1);
   const [estTotal, setEstTotal] = useState(0);
+  const [toc, setToc] = useState<TocItem[]>([]);
+  const [showSheets, setShowSheets] = useState(false);
+
+  // Annotations
+  const { items, add, update, remove } = useAnnotations(bookId);
+  const [activeColor, setActiveColor] = useState<HighlightColorKey>("yellow");
+  const [epubSel, setEpubSel] = useState<{ cfiRange: string; text: string } | null>(null);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [showNotes, setShowNotes] = useState(false);
+  const [renditionReady, setRenditionReady] = useState(false);
+  const selContents = useRef<Contents | null>(null);
+  const drawn = useRef<Map<string, string>>(new Map()); // cfiRange -> "id:color"
+  const editing = editingId != null ? items.find((a) => a.id === editingId) ?? null : null;
 
   useEffect(() => {
-    return () => {
-      renditionRef.current = null;
-    };
+    return () => { renditionRef.current = null; };
   }, []);
+
+  // Draw / reconcile saved highlights onto the rendition.
+  useEffect(() => {
+    const r = renditionRef.current;
+    if (!r || !renditionReady) return;
+    const anns = r.annotations as unknown as EpubAnnotations;
+    const want = new Map<string, Anno>();
+    for (const a of items) if (a.cfiRange && a.kind === "highlight") want.set(a.cfiRange, a);
+
+    for (const [cfi, a] of want) {
+      const sig = `${a.id}:${a.color}`;
+      if (drawn.current.get(cfi) !== sig) {
+        if (drawn.current.has(cfi)) { try { anns.remove(cfi, "highlight"); } catch {} }
+        try {
+          anns.add("highlight", cfi, {}, () => setEditingId(a.id), "rl-hl", {
+            fill: colorMeta(a.color).hex, "fill-opacity": "0.32", "mix-blend-mode": "multiply",
+          });
+          drawn.current.set(cfi, sig);
+        } catch {}
+      }
+    }
+    for (const cfi of Array.from(drawn.current.keys())) {
+      if (!want.has(cfi)) { try { anns.remove(cfi, "highlight"); } catch {} drawn.current.delete(cfi); }
+    }
+  }, [items, renditionReady]);
+
+  async function applyEpubHighlight(color: HighlightColorKey) {
+    const s = epubSel;
+    if (!s) return;
+    setEpubSel(null);
+    selContents.current?.window.getSelection()?.removeAllRanges();
+    setActiveColor(color);
+    const created = await add({ kind: "highlight", color, page: estPage, cfiRange: s.cfiRange, selectedText: s.text });
+    if (created) setEditingId(created.id);
+  }
+
+  async function addPageNote() {
+    const created = await add({ kind: "note", color: activeColor, page: estPage });
+    if (created) setEditingId(created.id);
+  }
 
   return (
     <div className="h-full w-full relative">
@@ -33,7 +97,6 @@ export function EpubReader({
         location={location}
         locationChanged={(loc: string) => {
           setLocation(loc);
-          // Map to a page-like number using rendition.locations if available
           let page = estPage;
           let total = estTotal;
           const r = renditionRef.current;
@@ -59,12 +122,34 @@ export function EpubReader({
           rendition.themes.fontSize("110%");
           rendition.hooks.content.register((contents: Contents) => {
             contents.document.documentElement.style.color = "var(--ink)";
+            // Copy → append a citation so passages leave the book attributed.
+            contents.document.addEventListener("copy", (e: ClipboardEvent) => {
+              const s = contents.window.getSelection()?.toString() ?? "";
+              if (!s.trim()) return;
+              e.clipboardData?.setData("text/plain", citedClipboardText(s, citation));
+              e.preventDefault();
+            });
           });
-          // Build the page-location index in the BACKGROUND, after the first
-          // page is already on screen. Generating it eagerly walks the entire
-          // book and blocks the initial render for many seconds on full novels.
-          // A larger chunk size is also much faster to compute.
+          // Text selected → offer the highlight palette.
+          rendition.on("selected", (cfiRange: string, contents: Contents) => {
+            selContents.current = contents;
+            let text = "";
+            try {
+              const rng = (rendition as unknown as { getRange?: (c: string) => Range }).getRange?.(cfiRange);
+              text = rng?.toString() ?? contents.window.getSelection()?.toString() ?? "";
+            } catch {
+              text = contents.window.getSelection()?.toString() ?? "";
+            }
+            setEpubSel({ cfiRange, text });
+          });
+          // TOC for the chapter overview.
+          rendition.book.loaded.navigation
+            .then((nav: { toc: TocNavItem[] }) => setToc(flattenToc(nav.toc)))
+            .catch(() => {});
+          // Build the page-location index in the BACKGROUND so the first page
+          // paints immediately instead of blocking on a full-book walk.
           rendition.book.ready.then(() => {
+            setRenditionReady(true);
             setTimeout(() => {
               const locs = rendition.book.locations as unknown as {
                 generate: (chars: number) => Promise<unknown>;
@@ -78,6 +163,109 @@ export function EpubReader({
         }}
         epubInitOptions={{ openAs: "epub" }}
       />
+
+      {/* Annotation tools */}
+      <div className="absolute top-2 right-2 z-20 flex items-center gap-2 rl-card px-2 py-1.5" style={{ background: "color-mix(in oklab, var(--paper-2) 92%, transparent)" }}>
+        <span className="text-[11px] hidden sm:inline" style={{ color: "var(--ink-3)" }} title="Highlight colour">Pen</span>
+        <ColorSwatches active={activeColor} onPick={setActiveColor} size={18} />
+        <div className="w-px h-5" style={{ background: "var(--line)" }} />
+        <button onClick={addPageNote} className="rl-btn text-[11px]" title="Add a note to this page">＋ Note</button>
+        <button onClick={() => setShowNotes(true)} className="rl-btn text-[11px]" title="My highlights & notes">✎ {items.filter((a) => a.mine).length}</button>
+        <button onClick={() => setShowSheets(true)} className="rl-btn text-[11px]" title="Browse chapters">▦ Chapters</button>
+      </div>
+
+      {/* Selection palette (centered — iframe selections are hard to anchor to) */}
+      {epubSel && (
+        <div className="absolute left-1/2 bottom-16 -translate-x-1/2 z-[60] rl-card px-3 py-2 flex items-center gap-2 shadow-lg" style={{ background: "var(--paper-2)" }}>
+          <span className="text-[11px]" style={{ color: "var(--ink-3)" }}>Highlight:</span>
+          <ColorSwatches onPick={applyEpubHighlight} size={22} />
+          <button onClick={() => { setEpubSel(null); selContents.current?.window.getSelection()?.removeAllRanges(); }} className="text-[11px] px-1" style={{ color: "var(--ink-4)" }}>✕</button>
+        </div>
+      )}
+
+      {showSheets && (
+        <SheetsOverview
+          items={toc}
+          onPick={(href) => { setLocation(href); setShowSheets(false); }}
+          onClose={() => setShowSheets(false)}
+        />
+      )}
+
+      {showNotes && (
+        <NotesPanel
+          items={items}
+          onJump={(a) => { if (a.cfiRange) setLocation(a.cfiRange); setShowNotes(false); }}
+          onEdit={(a) => setEditingId(a.id)}
+          onClose={() => setShowNotes(false)}
+        />
+      )}
+
+      {editing && (
+        <NoteEditor
+          anno={editing}
+          onChange={(patch) => update(editing.id, patch)}
+          onDelete={() => { remove(editing.id); setEditingId(null); }}
+          onClose={() => setEditingId(null)}
+        />
+      )}
     </div>
   );
+}
+
+// ── Chapter overview: every section as a sheet you can jump to ──
+function SheetsOverview({
+  items,
+  onPick,
+  onClose,
+}: {
+  items: TocItem[];
+  onPick: (href: string) => void;
+  onClose: () => void;
+}) {
+  return (
+    <div className="absolute inset-0 z-30 flex flex-col" style={{ background: "color-mix(in oklab, var(--paper) 96%, transparent)" }}>
+      <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: "var(--line)" }}>
+        <div>
+          <div className="rl-serif text-lg leading-tight">Chapters</div>
+          <div className="text-[11px]" style={{ color: "var(--ink-3)" }}>
+            {items.length} sections · tap one to jump
+          </div>
+        </div>
+        <button onClick={onClose} className="rl-btn text-xs">Close ✕</button>
+      </div>
+
+      {items.length === 0 ? (
+        <div className="flex-1 flex items-center justify-center text-sm" style={{ color: "var(--ink-3)" }}>
+          This book has no chapter markers to jump between.
+        </div>
+      ) : (
+        <div className="flex-1 overflow-y-auto rl-scroll p-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 max-w-5xl mx-auto">
+            {items.map((it, i) => (
+              <button key={`${it.href}-${i}`} onClick={() => onPick(it.href)} className="text-left group" title={it.label}>
+                <div className="rl-card aspect-[3/4] p-3 flex flex-col transition group-hover:-translate-y-1 group-hover:shadow-lg" style={{ background: "var(--paper-2)", boxShadow: "0 1px 3px rgba(28,24,20,0.08)" }}>
+                  <div className="text-[10px] rl-mono mb-2" style={{ color: "var(--ink-4)" }}>{String(i + 1).padStart(2, "0")}</div>
+                  <div className="rl-serif text-[13px] leading-snug line-clamp-4" style={{ paddingLeft: it.depth * 8 }}>{it.label || "Untitled"}</div>
+                  <div className="mt-auto space-y-1 pt-2" aria-hidden>
+                    <div style={{ height: 2, background: "var(--line)", width: "90%" }} />
+                    <div style={{ height: 2, background: "var(--line)", width: "75%" }} />
+                    <div style={{ height: 2, background: "var(--line)", width: "85%" }} />
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+type TocNavItem = { label?: string; href: string; subitems?: TocNavItem[] };
+function flattenToc(toc: TocNavItem[], depth = 0, out: TocItem[] = []): TocItem[] {
+  for (const it of toc || []) {
+    out.push({ label: (it.label || "").trim(), href: it.href, depth });
+    if (it.subitems?.length) flattenToc(it.subitems, depth + 1, out);
+  }
+  return out;
 }

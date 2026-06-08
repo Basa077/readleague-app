@@ -20,9 +20,11 @@ type Book = {
 
 export function ReaderShell({
   book,
+  citation,
   resume,
 }: {
   book: Book;
+  citation: string;
   resume: { currentPage: number; cfi: string | null; finished: boolean };
 }) {
   const router = useRouter();
@@ -133,6 +135,8 @@ export function ReaderShell({
           <EpubReader
             url={book.fileUrl}
             initialCfi={resume.cfi ?? undefined}
+            bookId={book.id}
+            citation={citation}
             onCfi={handleCfi}
             onTotalPages={handleTotalPages}
           />
@@ -140,6 +144,8 @@ export function ReaderShell({
           <PdfReader
             url={book.fileUrl}
             initialPage={resume.currentPage > 0 ? resume.currentPage : 1}
+            bookId={book.id}
+            citation={citation}
             onPageChange={handlePageChange}
           />
         )}

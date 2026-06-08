@@ -3,6 +3,7 @@ import { db, schema } from "@/db";
 import { and, eq } from "drizzle-orm";
 import { requireUser } from "@/lib/auth";
 import { canUserReadBook } from "@/lib/unlock";
+import { buildCitation } from "@/lib/annotations";
 import { ReaderShell } from "./ReaderShell";
 
 export default async function ReadPage(props: { params: Promise<{ id: string }> }) {
@@ -40,6 +41,7 @@ export default async function ReadPage(props: { params: Promise<{ id: string }> 
         format,
         pages: book.pages,
       }}
+      citation={buildCitation({ title: book.title, author: book.author, year: book.year })}
       resume={{
         currentPage: progress?.currentPage ?? 0,
         cfi: progress?.cfi ?? null,

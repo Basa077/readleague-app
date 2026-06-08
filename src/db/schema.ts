@@ -8,6 +8,7 @@ import {
   real,
   pgEnum,
   uniqueIndex,
+  index,
 } from "drizzle-orm/pg-core";
 
 export const roleEnum = pgEnum("role", ["reader", "coordinator"]);
@@ -148,6 +149,33 @@ export const leagueCycles = pgTable("league_cycles", {
   closedAt: timestamp("closed_at", { withTimezone: true }),
 });
 
+// Reader highlights & notes. Private by default (only the author sees them);
+// flip `shared` to surface a note to other readers of the same book — "what I
+// want others to learn". PDFs store normalized rects + page; EPUBs store a CFI
+// range. `kind` = 'highlight' (anchored to text) | 'note' (a comment on a page).
+export const annotations = pgTable(
+  "annotations",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    bookId: integer("book_id").notNull().references(() => books.id, { onDelete: "cascade" }),
+    kind: text("kind").notNull().default("highlight"),   // 'highlight' | 'note'
+    color: text("color").notNull().default("yellow"),    // yellow|green|blue|pink|purple
+    page: integer("page"),                               // PDF page (1-based) or EPUB est. page
+    cfiRange: text("cfi_range"),                         // EPUB highlight range
+    rects: text("rects"),                                // PDF: JSON [{x,y,w,h}] normalized 0..1
+    selectedText: text("selected_text"),                 // the highlighted passage (display + citation)
+    note: text("note"),                                  // the reader's comment
+    shared: boolean("shared").notNull().default(false),  // visible to other readers of this book
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    byUserBook: index("annotations_user_book_idx").on(t.userId, t.bookId),
+    byBookShared: index("annotations_book_shared_idx").on(t.bookId, t.shared),
+  })
+);
+
 export const announcements = pgTable("announcements", {
   id: serial("id").primaryKey(),
   title: text("title").notNull(),
@@ -165,3 +193,5 @@ export type ReadingSession = typeof readingSessions.$inferSelect;
 export type League = typeof leagues.$inferSelect;
 export type BookUnlock = typeof bookUnlocks.$inferSelect;
 export type UserProgress = typeof userProgress.$inferSelect;
+export type Annotation = typeof annotations.$inferSelect;
+export type NewAnnotation = typeof annotations.$inferInsert;
