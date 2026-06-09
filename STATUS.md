@@ -6,6 +6,28 @@
 
 _Last updated: 2026-06-09_
 
+## 🆕 Latest (2026-06-09, pt 2) — paid books via Paystack (MoMo + cards)
+Typechecks + `npm run build` green (paystack routes present). Schema pushed
+(`books.price_ghs` + `purchases`). **Verified: Paystack test key returns a real
+checkout URL; in-app Buy → checkout.paystack.com; reading blocked before
+purchase, allowed after** (gating unit-checked + browser-checked). Test book
+reset to free; committed. **Test keys** only so far — see `SETUP-PAYSTACK.md`.
+
+- **💳 Sell any book.** Coordinator sets a price at **Admin → Books → a book →
+  "Price & selling"** (`PriceEditor`). Price > 0 makes it premium (overrides
+  league locks). Readers see **"Buy to read · GHS X"** → Paystack hosted checkout
+  (**MoMo + card**) → callback verifies → access granted. Uploader + coordinators
+  read their paid books free.
+- **Flow:** `lib/paystack.ts` (initialize/verify/webhook-signature),
+  `actions/purchases.ts` (start checkout), `/api/paystack/callback` (verify on
+  redirect), `/api/paystack/webhook` (signed backup), access in `lib/unlock.ts`
+  (`hasPurchased`). `purchases` table records each attempt.
+- **Aim (per the user):** MoMo for Ghana, cards for everyone — Paystack covers
+  both. Multi-provider (Flutterwave) can be added later behind the same UI.
+- **Go-live = config, not code:** add the 2 keys to Vercel + a webhook URL, then
+  swap test→live keys after Paystack business verification (the GhanaPost GPS
+  step). All in `SETUP-PAYSTACK.md`.
+
 ## 🆕 Latest (2026-06-09) — feed → immersive: video, Stories, swipe & #hashtags
 Typechecks + `npm run build` green. Schema pushed (video/story columns +
 `post_hashtags`). **Verified live (headless): post w/ #hashtag → trending bar

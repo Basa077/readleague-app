@@ -4,6 +4,7 @@ import { eq, desc, asc } from "drizzle-orm";
 import { BookCover } from "@/components/BookCover";
 import { LockEditor } from "./LockEditor";
 import { GrantUnlockForm } from "./GrantUnlockForm";
+import { PriceEditor } from "./PriceEditor";
 
 export default async function AdminBookDetail(props: { params: Promise<{ id: string }> }) {
   const { id } = await props.params;
@@ -56,6 +57,15 @@ export default async function AdminBookDetail(props: { params: Promise<{ id: str
           you close the weekly cycle.
         </p>
         <LockEditor book={book} leagues={leagues.map((l) => l.id)} />
+      </section>
+
+      <section className="rl-card p-4 space-y-3">
+        <div className="rl-serif text-lg">Price &amp; selling</div>
+        <p className="text-xs" style={{ color: "var(--ink-3)" }}>
+          Set a price to sell this book. Readers pay once with Mobile Money or card (Paystack)
+          and then own it. A price above 0 overrides league locks — anyone who buys can read.
+        </p>
+        <PriceEditor book={book} />
       </section>
 
       <section className="rl-card p-4 space-y-3">

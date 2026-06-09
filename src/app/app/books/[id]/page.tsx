@@ -6,10 +6,15 @@ import { requireUser } from "@/lib/auth";
 import { BookCover } from "@/components/BookCover";
 import { BackButton } from "@/components/BackButton";
 import { canUserReadBook, lockDescription } from "@/lib/unlock";
+import { BuyButton } from "./BuyButton";
 
-export default async function BookDetailPage(props: { params: Promise<{ id: string }> }) {
+export default async function BookDetailPage(props: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ payment?: string }>;
+}) {
   const user = await requireUser();
   const { id } = await props.params;
+  const { payment } = await props.searchParams;
   const bookId = Number(id);
   if (!bookId) notFound();
 
@@ -37,6 +42,11 @@ export default async function BookDetailPage(props: { params: Promise<{ id: stri
             {book.pages && <span className="rl-pill">{book.pages} pages</span>}
             {book.format && <span className="rl-pill">{book.format}</span>}
             {book.year && <span className="rl-pill">{book.year}</span>}
+            {(book.priceGhs ?? 0) > 0 && (
+              <span className="rl-pill" style={{ background: "var(--accent-soft)", color: "var(--accent-ink)" }}>
+                {allowed ? "✓ Owned" : `GHS ${book.priceGhs}`}
+              </span>
+            )}
           </div>
           {book.lockType !== "open" && (
             <div className="text-xs px-3 py-2 rounded-md inline-block mt-2" style={{ background: allowed ? "var(--accent-soft)" : "var(--paper-3)", color: allowed ? "var(--accent-ink)" : "var(--ink-2)" }}>
@@ -45,6 +55,12 @@ export default async function BookDetailPage(props: { params: Promise<{ id: stri
           )}
         </div>
       </div>
+
+      {payment === "failed" && (
+        <div className="rl-card p-3 text-sm" style={{ background: "var(--claret-soft)", color: "var(--claret)" }}>
+          Payment didn’t go through. Nothing was charged — you can try again.
+        </div>
+      )}
 
       {/* Primary CTA */}
       {allowed && book.fileUrl ? (
@@ -63,6 +79,16 @@ export default async function BookDetailPage(props: { params: Promise<{ id: stri
           <Link href={`/app/read/${book.id}`} className="rl-btn rl-btn-primary">
             {progress?.finished ? "Re-read" : progress ? "Continue" : "Start reading"}
           </Link>
+        </div>
+      ) : (book.priceGhs ?? 0) > 0 && !allowed ? (
+        <div className="rl-card p-4 sm:p-5 flex items-center justify-between gap-4">
+          <div>
+            <div className="rl-serif text-lg">Premium book</div>
+            <div className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>
+              Buy once with Mobile Money or card — read it anytime, on any device.
+            </div>
+          </div>
+          <BuyButton bookId={book.id} priceGhs={book.priceGhs} />
         </div>
       ) : !allowed ? (
         <div className="rl-card p-5 text-sm text-center" style={{ color: "var(--ink-2)" }}>

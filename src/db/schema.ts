@@ -68,6 +68,7 @@ export const books = pgTable("books", {
   year: integer("year"),
   rating: real("rating").notNull().default(0),
   readers: integer("readers").notNull().default(0),
+  priceGhs: integer("price_ghs").notNull().default(0), // 0 = free; >0 = must purchase (whole GHS)
   status: bookStatusEnum("status").notNull().default("approved"),
   uploaderId: integer("uploader_id").references(() => users.id),
   lockType: lockTypeEnum("lock_type").notNull().default("open"),
@@ -247,6 +248,27 @@ export const postComments = pgTable(
   (t) => ({ byPost: index("post_comments_post_idx").on(t.postId) })
 );
 
+// Paid-book purchases via Paystack (MoMo + cards). One row per checkout attempt;
+// `status` flips to 'success' on verify/webhook, which grants read access.
+export const purchases = pgTable(
+  "purchases",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    bookId: integer("book_id").notNull().references(() => books.id, { onDelete: "cascade" }),
+    amountGhs: integer("amount_ghs").notNull(),
+    reference: text("reference").notNull(),
+    provider: text("provider").notNull().default("paystack"),
+    status: text("status").notNull().default("pending"), // 'pending' | 'success' | 'failed'
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    refUnique: uniqueIndex("purchases_reference_idx").on(t.reference),
+    byUserBook: index("purchases_user_book_idx").on(t.userId, t.bookId),
+  })
+);
+
 export const announcements = pgTable("announcements", {
   id: serial("id").primaryKey(),
   title: text("title").notNull(),
@@ -269,3 +291,4 @@ export type NewAnnotation = typeof annotations.$inferInsert;
 export type Post = typeof posts.$inferSelect;
 export type NewPost = typeof posts.$inferInsert;
 export type PostComment = typeof postComments.$inferSelect;
+export type Purchase = typeof purchases.$inferSelect;

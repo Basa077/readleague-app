@@ -45,3 +45,26 @@ export async function updateBookLockAction(_prev: LockState, formData: FormData)
   revalidatePath("/app");
   return { ok: true };
 }
+
+const priceSchema = z.object({
+  bookId: z.coerce.number().int().positive(),
+  priceGhs: z.coerce.number().int().min(0).max(100000),
+});
+
+export type PriceState = { error?: string; ok?: boolean };
+
+export async function updateBookPriceAction(_prev: PriceState, formData: FormData): Promise<PriceState> {
+  await requireCoordinator();
+  const parsed = priceSchema.safeParse({
+    bookId: formData.get("bookId"),
+    priceGhs: formData.get("priceGhs"),
+  });
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
+
+  await db.update(schema.books).set({ priceGhs: parsed.data.priceGhs }).where(eq(schema.books.id, parsed.data.bookId));
+
+  revalidatePath(`/admin/books/${parsed.data.bookId}`);
+  revalidatePath(`/app/books/${parsed.data.bookId}`);
+  revalidatePath("/app");
+  return { ok: true };
+}

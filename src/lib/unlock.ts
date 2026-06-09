@@ -2,14 +2,28 @@ import { db, schema } from "@/db";
 import { and, eq } from "drizzle-orm";
 import type { Book, User } from "@/db/schema";
 
+/** True if the user has a successful purchase of this book. */
+export async function hasPurchased(userId: number, bookId: number): Promise<boolean> {
+  const [row] = await db
+    .select({ id: schema.purchases.id })
+    .from(schema.purchases)
+    .where(and(eq(schema.purchases.userId, userId), eq(schema.purchases.bookId, bookId), eq(schema.purchases.status, "success")))
+    .limit(1);
+  return !!row;
+}
+
 /**
- * Returns true if `user` may read `book` given its lock_type.
- *  - open:           anyone
- *  - league_winner:  user must have an entry in book_unlocks (auto-granted at cycle close)
- *  - league_top_n:   same — granted at cycle close to top-N finishers
- *  - admin_grant:    same — granted manually by coordinator
+ * Returns true if `user` may read `book`.
+ *  - Paid books (price_ghs > 0): the uploader & coordinators always can; everyone
+ *    else needs a successful purchase.
+ *  - Free books fall back to lock_type:
+ *      open → anyone; otherwise an entry in book_unlocks (league reward / grant).
  */
 export async function canUserReadBook(user: User, book: Book): Promise<boolean> {
+  if ((book.priceGhs ?? 0) > 0) {
+    if (user.role === "coordinator" || book.uploaderId === user.id) return true;
+    return hasPurchased(user.id, book.id);
+  }
   if (book.lockType === "open") return true;
   const [row] = await db
     .select({ id: schema.bookUnlocks.id })
