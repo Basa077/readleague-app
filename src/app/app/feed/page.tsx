@@ -1,13 +1,23 @@
 import { requireUser } from "@/lib/auth";
 import { db, schema } from "@/db";
 import { desc, eq } from "drizzle-orm";
-import { listFeedAction } from "@/app/actions/feed";
-import { CLOUDFLARE_STREAM_ENABLED } from "@/lib/config";
+import {
+  listFeedAction,
+  listStoriesAction,
+  trendingHashtagsAction,
+  trendingBooksAction,
+} from "@/app/actions/feed";
 import { FeedClient } from "./FeedClient";
 
 export default async function FeedPage() {
   const user = await requireUser();
-  const initial = await listFeedAction();
+
+  const [initial, stories, trendingTags, trendingBooks] = await Promise.all([
+    listFeedAction(),
+    listStoriesAction(),
+    trendingHashtagsAction(),
+    trendingBooksAction(),
+  ]);
 
   // Books the reader has opened — offered as a "tag a book" option in composer.
   const myBooks = await db
@@ -30,7 +40,9 @@ export default async function FeedPage() {
         initial={initial}
         me={{ id: user.id, name: user.displayName, handle: user.handle, role: user.role }}
         myBooks={myBooks}
-        videoEnabled={CLOUDFLARE_STREAM_ENABLED}
+        stories={stories}
+        trendingTags={trendingTags}
+        trendingBooks={trendingBooks}
       />
     </div>
   );

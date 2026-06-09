@@ -19,6 +19,9 @@ export const MAX_BOOK_BYTES = 50 * 1024 * 1024; // 50 MB
 /** Max size for a feed image (uploaded browser → Vercel Blob, same as books). */
 export const MAX_IMAGE_BYTES = 8 * 1024 * 1024; // 8 MB
 
+/** Max size for a feed/story video clip (Vercel Blob). Keep clips short. */
+export const MAX_VIDEO_BYTES = 60 * 1024 * 1024; // 60 MB
+
 /** Whether feed video uploads are wired up (Cloudflare Stream). Gated on creds
  *  so the UI only offers video once the account is configured — see
  *  SETUP-CLOUDFLARE.md. Mirrors the Google sign-in gating pattern. */

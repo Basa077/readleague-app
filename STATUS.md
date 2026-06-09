@@ -4,7 +4,40 @@
 > after a reboot, open Claude Code in this folder and say *"read STATUS.md, where did
 > we leave off?"* — that's all you need.
 
-_Last updated: 2026-06-08_
+_Last updated: 2026-06-09_
+
+## 🆕 Latest (2026-06-09) — feed → immersive: video, Stories, swipe & #hashtags
+Typechecks + `npm run build` green. Schema pushed (video/story columns +
+`post_hashtags`). **Verified live (headless): post w/ #hashtag → trending bar
+surfaces it → tag page lists it → swipe view opens — 6/6, 0 *app* errors.**
+(One hydration warning seen in headless Edge = a browser-injected `caret-color`
+on inputs, not our code — same benign class as the MetaMask note.) Committed; not
+deployed. **Video/story media upload needs the prod Blob token, so it's a
+prod-only path — verify media after deploy** (text/hashtag/swipe verified local).
+
+- **🎥 Video — on Vercel Blob (no Cloudflare needed).** Decided to ship video on
+  the Blob store we already have (Cloudflare Stream deferred as a scale upgrade).
+  Posts + stories take short clips; `upload-media` route + `media-client` now
+  accept video (≤60MB). Plays via HTML5 `<video>`.
+- **📸 Stories (24h).** `isStory`/`expiresAt` on posts. Tray at the top of the
+  feed (rings + "Your story"), a composer that uses the **camera on mobile**
+  (`capture`), and a full-screen tap-through **viewer** with progress bars
+  (`Stories.tsx`).
+- **⤢ Swipe feed.** Full-screen vertical scroll-snap pager (TikTok/Reels feel),
+  autoplays video while in view, right-rail like/comment/reshare, comments
+  bottom-sheet (`SwipeFeed.tsx`). Opens from a button on the feed.
+- **#️⃣ Hashtags + trending.** `#tags` parsed from posts → `post_hashtags`;
+  clickable in posts (`RichText.tsx`), a **Trending** bar (hot tags + "books
+  people are reading") + hashtag **search** (`Trending.tsx`), and `#tag` pages
+  at `/app/feed/tag/[tag]`. This is the "search #trending → everyone hops on a
+  book" discovery loop.
+
+### Decisions locked this session
+- **Video host = Vercel Blob now**, Cloudflare later only if needed (so there's
+  nothing for the user to set up for video).
+- **Payments = multi-provider, gated** (build when ready): **MoMo for Ghana**
+  via Paystack/Flutterwave, **cards globally**. Still needs (a) a merchant
+  account's API keys and (b) what books are actually for sale (licensing).
 
 ## 🆕 Latest (2026-06-08, pt 2) — the worldwide Feed (Phase 2 begins)
 Typechecks + `npm run build` green. New feed tables pushed to Neon. **Verified

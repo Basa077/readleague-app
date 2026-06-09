@@ -187,10 +187,13 @@ export const posts = pgTable(
     authorId: integer("author_id").notNull().references(() => users.id, { onDelete: "cascade" }),
     body: text("body"),                       // caption / thought
     imageUrl: text("image_url"),              // Vercel Blob image
-    videoUid: text("video_uid"),              // Cloudflare Stream UID (later)
+    videoUrl: text("video_url"),              // Vercel Blob video (short clips)
+    videoUid: text("video_uid"),              // Cloudflare Stream UID (future scale)
     videoThumb: text("video_thumb"),          // poster image for the video
     bookId: integer("book_id").references(() => books.id, { onDelete: "set null" }), // "I read this"
     resharedFromId: integer("reshared_from_id"), // self-ref → posts.id (no FK; handled in app)
+    isStory: boolean("is_story").notNull().default(false), // ephemeral story vs feed post
+    expiresAt: timestamp("expires_at", { withTimezone: true }), // stories expire (24h)
     likeCount: integer("like_count").notNull().default(0),
     commentCount: integer("comment_count").notNull().default(0),
     reshareCount: integer("reshare_count").notNull().default(0),
@@ -201,6 +204,23 @@ export const posts = pgTable(
   (t) => ({
     byCreated: index("posts_created_idx").on(t.createdAt),
     byAuthor: index("posts_author_idx").on(t.authorId),
+    byStory: index("posts_story_idx").on(t.isStory, t.expiresAt),
+  })
+);
+
+// Hashtags lifted out of post bodies, for #trending discovery. One row per
+// (post, tag); tag is lowercased without the leading '#'.
+export const postHashtags = pgTable(
+  "post_hashtags",
+  {
+    id: serial("id").primaryKey(),
+    postId: integer("post_id").notNull().references(() => posts.id, { onDelete: "cascade" }),
+    tag: text("tag").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    byTag: index("post_hashtags_tag_idx").on(t.tag),
+    byCreated: index("post_hashtags_created_idx").on(t.createdAt),
   })
 );
 

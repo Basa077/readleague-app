@@ -12,6 +12,7 @@ import {
   type FeedPost,
   type CommentDTO,
 } from "@/app/actions/feed";
+import { RichText, PostMedia } from "./RichText";
 
 function initials(name: string) {
   return name.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase()).join("") || "R";
@@ -53,10 +54,11 @@ function PostBody({ post, embedded = false }: { post: FeedPost; embedded?: boole
           <span className="text-[11px]" style={{ color: "var(--ink-3)" }}>· {timeAgo(post.createdAt)}</span>
         </div>
       )}
-      {post.body && <p className="text-[15px] leading-relaxed whitespace-pre-wrap">{post.body}</p>}
-      {post.imageUrl && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={post.imageUrl} alt="" className="mt-2 rounded-lg max-h-[28rem] w-full object-cover" style={{ border: "0.5px solid var(--line)" }} />
+      {post.body && <p className="text-[15px] leading-relaxed whitespace-pre-wrap"><RichText text={post.body} /></p>}
+      {(post.imageUrl || post.videoUrl) && (
+        <div className="mt-2">
+          <PostMedia imageUrl={post.imageUrl} videoUrl={post.videoUrl} />
+        </div>
       )}
       {post.book && <BookChip book={post.book} />}
     </div>

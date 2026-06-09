@@ -1,7 +1,7 @@
 import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { MAX_IMAGE_BYTES } from "@/lib/config";
+import { MAX_VIDEO_BYTES } from "@/lib/config";
 
 // Issues short-lived client tokens so the browser can upload a feed IMAGE
 // directly to Vercel Blob (same pattern as book uploads, different content
@@ -17,8 +17,11 @@ export async function POST(req: Request): Promise<NextResponse> {
         const user = await getCurrentUser();
         if (!user) throw new Error("Sign in to post.");
         return {
-          allowedContentTypes: ["image/png", "image/jpeg", "image/webp", "image/gif"],
-          maximumSizeInBytes: MAX_IMAGE_BYTES,
+          allowedContentTypes: [
+            "image/png", "image/jpeg", "image/webp", "image/gif",
+            "video/mp4", "video/webm", "video/quicktime",
+          ],
+          maximumSizeInBytes: MAX_VIDEO_BYTES,
           addRandomSuffix: true,
           tokenPayload: JSON.stringify({ userId: user.id }),
         };
