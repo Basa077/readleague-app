@@ -20,12 +20,22 @@ export async function uploadFeedMedia(file: File): Promise<UploadedMedia> {
     throw new Error(`${kind === "video" ? "Video" : "Image"} too large (max ${Math.round(cap / 1024 / 1024)} MB).`);
   }
   const safeName = `${Date.now()}-${file.name.replace(/[^a-z0-9.\-_]+/gi, "_")}`;
-  const blob = await upload(`feed/${safeName}`, file, {
-    access: "public",
-    handleUploadUrl: "/api/blob/upload-media",
-    contentType: file.type,
-  });
-  return { url: blob.url, kind };
+  try {
+    const blob = await upload(`feed/${safeName}`, file, {
+      access: "public",
+      handleUploadUrl: "/api/blob/upload-media",
+      contentType: file.type,
+    });
+    return { url: blob.url, kind };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    // Local dev has no Blob token, so the upload token can't be minted. This
+    // path works on the deployed site, where the store is configured.
+    if (/client token|BLOB_READ_WRITE_TOKEN|token/i.test(msg)) {
+      throw new Error("Photo & video posting works on the live site — it needs cloud storage that isn't on in local preview. It'll work once deployed.");
+    }
+    throw e;
+  }
 }
 
 /** Back-compat helper for image-only callers. */
