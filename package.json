@@ -11,6 +11,7 @@
     "db:seed": "tsx --env-file=.env.local src/db/seed.ts",
     "db:books": "tsx --env-file=.env.local scripts/seed-books.ts",
     "db:leagues": "tsx --env-file=.env.local scripts/expand-leagues.ts",
+    "db:import": "tsx --env-file=.env.local scripts/import-books.ts",
     "bundle-books": "tsx --env-file=.env.local scripts/bundle-books.ts",
     "set-password": "tsx --env-file=.env.local scripts/set-password.ts",
     "db:reset": "tsx --env-file=.env.local src/db/reset.ts",
