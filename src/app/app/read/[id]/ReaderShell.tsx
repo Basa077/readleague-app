@@ -144,7 +144,7 @@ export function ReaderShell({
         {showHint && (
           <div className="absolute top-2 left-1/2 -translate-x-1/2 z-40 rl-card px-3 py-2 flex items-center gap-3 shadow-lg max-w-[94%]" style={{ background: "var(--paper-2)" }}>
             <span className="text-[12px] leading-snug" style={{ color: "var(--ink)" }}>
-              🖍️ <strong>New — highlight &amp; take notes:</strong> select any text to highlight it in a colour (top-right pen), then add a note. Tap <strong>✎ Notes</strong> to revisit them.
+              🖍️ <strong>Highlight &amp; take notes:</strong> tap a colour (top-right), then select text to mark it — or just select text and pick a colour. Tap <strong>✎ Notes</strong> to revisit them.
             </span>
             <button onClick={dismissHint} className="rl-btn rl-btn-primary text-[11px] shrink-0">Got it</button>
           </div>

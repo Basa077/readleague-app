@@ -7,6 +7,8 @@ import "react-pdf/dist/Page/TextLayer.css";
 import { colorMeta, citedClipboardText, type HighlightColorKey } from "@/lib/annotations";
 import { useAnnotations, parseRects, type Anno, type NRect } from "./useAnnotations";
 import { ColorSwatches, SelectionToolbar, NoteEditor, NotesPanel } from "./AnnotationUI";
+import { useReadAloud, toChunks } from "./useReadAloud";
+import { ListenControls } from "./ListenControls";
 
 pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
@@ -52,10 +54,15 @@ export function PdfReader({
 
   // Annotations
   const { items, add, update, remove } = useAnnotations(bookId);
-  const [activeColor, setActiveColor] = useState<HighlightColorKey>("yellow");
+  // The "armed" marker pen. null = off → selecting text opens the colour palette.
+  // A colour = the pen is held → selecting text highlights instantly in that colour.
+  const [marker, setMarker] = useState<HighlightColorKey | null>(null);
   const [selection, setSelection] = useState<Selection | null>(null);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [showNotes, setShowNotes] = useState(false);
+  // How many rendered pages had / lacked selectable text — to spot scanned PDFs.
+  const textStat = useRef<Map<number, boolean>>(new Map());
+  const [scanned, setScanned] = useState(false);
   const editing = editingId != null ? items.find((a) => a.id === editingId) ?? null : null;
   const myCount = items.filter((a) => a.mine).length;
 
@@ -148,26 +155,71 @@ export function PdfReader({
     else wrapRef.current?.scrollTo({ top: 0 });
   }, [numPages, mode]);
 
+  // Core: persist a highlight from already-computed rects.
+  const createHighlight = useCallback(
+    async (page: number, rects: NRect[], text: string, color: HighlightColorKey, openEditor: boolean) => {
+      window.getSelection()?.removeAllRanges();
+      const created = await add({ kind: "highlight", color, page, rects: JSON.stringify(rects), selectedText: text });
+      if (created && openEditor) setEditingId(created.id);
+    },
+    [add]
+  );
+
   const onPageSelect = useCallback((page: number, wrapperEl: HTMLElement) => {
     const r = rectsFromSelection(wrapperEl);
     if (!r) { setSelection(null); return; }
-    setSelection({ page, rects: r.rects, text: r.text, x: r.anchor.left + r.anchor.width / 2, y: Math.max(72, r.anchor.top) });
-  }, []);
+    if (marker) {
+      // Pen is held → mark instantly and stay armed for the next selection.
+      void createHighlight(page, r.rects, r.text, marker, false);
+      return;
+    }
+    // Clamp the palette into the viewport so it's never off-screen.
+    const x = Math.min(window.innerWidth - 120, Math.max(120, r.anchor.left + r.anchor.width / 2));
+    const y = Math.max(72, r.anchor.top);
+    setSelection({ page, rects: r.rects, text: r.text, x, y });
+  }, [marker, createHighlight]);
 
   const applyHighlight = useCallback(async (color: HighlightColorKey) => {
     const s = selection;
     if (!s) return;
     setSelection(null);
-    window.getSelection()?.removeAllRanges();
-    setActiveColor(color);
-    const created = await add({ kind: "highlight", color, page: s.page, rects: JSON.stringify(s.rects), selectedText: s.text });
-    if (created) setEditingId(created.id);
-  }, [selection, add]);
+    await createHighlight(s.page, s.rects, s.text, color, true);
+  }, [selection, createHighlight]);
+
+  // Record whether a rendered page had selectable text; flag whole-doc scans.
+  const reportText = useCallback((page: number, hasText: boolean) => {
+    textStat.current.set(page, hasText);
+    const vals = Array.from(textStat.current.values());
+    if (vals.length >= 3 && vals.every((v) => !v)) setScanned(true);
+    else if (hasText) setScanned(false);
+  }, []);
 
   const addPageNote = useCallback(async () => {
-    const created = await add({ kind: "note", color: activeColor, page: pageNumber });
+    const created = await add({ kind: "note", color: marker ?? "yellow", page: pageNumber });
     if (created) setEditingId(created.id);
-  }, [add, activeColor, pageNumber]);
+  }, [add, marker, pageNumber]);
+
+  // ── Read-aloud: speak the current page, then advance and keep going. ──
+  const ra = useReadAloud();
+  const listenPageRef = useRef(1);
+  const pageText = useCallback((p: number) => {
+    const layer = pageEls.current.get(p)?.querySelector(".react-pdf__Page__textContent, .textLayer");
+    return layer ? Array.from(layer.querySelectorAll("span")).map((s) => s.textContent ?? "").join(" ") : "";
+  }, []);
+  const startListening = useCallback(() => {
+    listenPageRef.current = pageNumber;
+    ra.play({
+      chunks: () => toChunks(pageText(listenPageRef.current)),
+      advance: async () => {
+        const total = numPages || listenPageRef.current;
+        if (listenPageRef.current >= total) return false;
+        listenPageRef.current += 1;
+        jump(listenPageRef.current);
+        await new Promise((r) => setTimeout(r, 750));
+        return true;
+      },
+    });
+  }, [pageNumber, numPages, jump, pageText, ra]);
 
   const pageList = Array.from({ length: numPages }, (_, i) => i + 1);
 
@@ -190,27 +242,39 @@ export function PdfReader({
           ) : mode === "scroll" ? (
             <div className="w-full flex flex-col items-center gap-3 py-4">
               {pageList.map((n) => (
-                <PdfPage key={n} pageNumber={n} width={width} annos={items} register={registerPage} onSelect={onPageSelect} eager={n <= 2} />
+                <PdfPage key={n} pageNumber={n} width={width} annos={items} register={registerPage} onSelect={onPageSelect} onText={reportText} eager={n <= 2} />
               ))}
             </div>
           ) : (
             <div className="py-4">
-              <PdfPage pageNumber={pageNumber} width={width} annos={items} register={registerPage} onSelect={onPageSelect} eager />
+              <PdfPage pageNumber={pageNumber} width={width} annos={items} register={registerPage} onSelect={onPageSelect} onText={reportText} eager />
             </div>
           )}
         </Document>
       </div>
 
-      {/* Annotation tools (pen colour + notes) */}
+      {/* Annotation tools (marker pen + notes) */}
       <div className="absolute top-2 right-2 z-20 flex items-center gap-2 rl-card px-2 py-1.5 shadow-md" style={{ background: "var(--paper-2)" }}>
-        <span className="text-[11px] hidden sm:inline" style={{ color: "var(--ink-3)" }} title="Pick a colour, then select text">Highlight</span>
-        <ColorSwatches active={activeColor} onPick={setActiveColor} size={18} />
+        <span className="text-[11px]" style={{ color: marker ? colorMeta(marker).hex : "var(--ink-3)" }} title="Tap a colour, then select text to highlight">
+          {marker ? `🖍 ${colorMeta(marker).label} — select text` : "Highlight"}
+        </span>
+        <ColorSwatches active={marker ?? undefined} onPick={(c) => setMarker((m) => (m === c ? null : c))} size={18} />
+        {marker && (
+          <button onClick={() => setMarker(null)} className="text-[11px] px-1" style={{ color: "var(--ink-4)" }} title="Put the pen down">✕</button>
+        )}
         <div className="w-px h-5" style={{ background: "var(--line)" }} />
         <button onClick={addPageNote} className="rl-btn text-[11px]" title="Add a note to this page">＋ Note</button>
         <button onClick={() => setShowNotes(true)} className="rl-btn text-[11px]" title="My highlights & notes">
           ✎ Notes{myCount > 0 ? ` · ${myCount}` : ""}
         </button>
       </div>
+
+      {/* Scanned / image-only PDF: explain why text can't be selected. */}
+      {scanned && (
+        <div className="absolute top-14 left-1/2 -translate-x-1/2 z-20 rl-card px-3 py-1.5 text-[11px] shadow-md text-center max-w-[92%]" style={{ background: "var(--paper-2)", color: "var(--ink-2)" }}>
+          🖼 This PDF is made of page images (scanned) — there’s no selectable text, so highlighting &amp; notes aren’t available for it.
+        </div>
+      )}
 
       {/* Navigation bar */}
       <div className="absolute bottom-0 left-0 right-0 flex items-center justify-center gap-2 sm:gap-3 py-2 px-3 backdrop-blur z-20" style={{ background: "color-mix(in oklab, var(--paper-2) 90%, transparent)", borderTop: "0.5px solid var(--line)" }}>
@@ -219,6 +283,8 @@ export function PdfReader({
         </button>
         <div className="w-px h-5" style={{ background: "var(--line)" }} />
         <button onClick={() => setShowGrid((s) => !s)} className={`rl-btn text-xs ${showGrid ? "rl-btn-primary" : ""}`} title="Browse pages as thumbnails">▦ Pages</button>
+        <div className="w-px h-5" style={{ background: "var(--line)" }} />
+        <ListenControls ra={ra} onPlay={startListening} />
         {mode === "single" && !showGrid && (
           <>
             <div className="w-px h-5" style={{ background: "var(--line)" }} />
@@ -263,6 +329,7 @@ function PdfPage({
   annos,
   register,
   onSelect,
+  onText,
   eager = false,
 }: {
   pageNumber: number;
@@ -270,10 +337,12 @@ function PdfPage({
   annos: Anno[];
   register: (n: number, el: HTMLDivElement | null) => void;
   onSelect: (page: number, wrapperEl: HTMLElement) => void;
+  onText: (page: number, hasText: boolean) => void;
   eager?: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [render, setRender] = useState(eager);
+  const [noText, setNoText] = useState(false);
 
   useEffect(() => {
     const el = ref.current;
@@ -302,7 +371,19 @@ function PdfPage({
       onTouchEnd={() => { if (ref.current) onSelect(pageNumber, ref.current); }}
     >
       {render ? (
-        <Page pageNumber={pageNumber} width={width} renderAnnotationLayer renderTextLayer loading={<div style={{ height: Math.round(width * 1.3) }} />} />
+        <Page
+          pageNumber={pageNumber}
+          width={width}
+          renderAnnotationLayer
+          renderTextLayer
+          loading={<div style={{ height: Math.round(width * 1.3) }} />}
+          onRenderTextLayerSuccess={() => {
+            const layer = ref.current?.querySelector(".react-pdf__Page__textContent, .textLayer");
+            const hasText = !!layer && Array.from(layer.querySelectorAll("span")).some((s) => (s.textContent || "").trim().length > 0);
+            setNoText(!hasText);
+            onText(pageNumber, hasText);
+          }}
+        />
       ) : (
         <div className="absolute inset-0 flex items-center justify-center" style={{ color: "var(--ink-4)" }}>
           <span className="rl-mono text-xs">{pageNumber}</span>
@@ -322,6 +403,12 @@ function PdfPage({
             }}
           />
         ))
+      )}
+
+      {render && noText && (
+        <div className="absolute top-2 left-2 rl-mono text-[10px] px-1.5 py-0.5 rounded pointer-events-none" style={{ background: "color-mix(in oklab, var(--paper) 80%, transparent)", color: "var(--ink-4)" }}>
+          🖼 image — no text to highlight
+        </div>
       )}
 
       <div className="absolute bottom-1 right-2 rl-mono text-[10px] px-1.5 rounded pointer-events-none" style={{ background: "color-mix(in oklab, var(--paper) 70%, transparent)", color: "var(--ink-4)" }}>
