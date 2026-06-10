@@ -5,21 +5,21 @@ import { LEAGUE_LADDER } from "@/lib/leagues";
 async function main() {
   console.log("Seeding ReadLeague…");
 
-  // Leagues — seed the 5 starter tiers. More auto-create as readers climb.
-  // Tier 1 = top.
-  const STARTERS = LEAGUE_LADDER.slice(0, 5); // Tuareg → Asante in upward order
+  // Leagues — seed the whole ladder so the journey is deep from day one.
+  // Tier 1 = top (Lunda); entry tier = bottom (Tuareg). Even more auto-create
+  // beyond the ladder as readers climb (see closeCycleAction / generateNextLeague).
   await db
     .insert(schema.leagues)
-    .values(STARTERS.map((l, i) => ({
+    .values(LEAGUE_LADDER.map((l, i) => ({
       id: l.id,
       name: l.name,
       championTitle: l.championTitle,
       threshold: l.threshold,
       uploadsRequired: l.uploadsRequired,
-      tier: STARTERS.length - i, // tuareg=5, ..., asante=1
+      tier: LEAGUE_LADDER.length - i, // tuareg=20 (entry), …, lunda=1 (top)
     })))
     .onConflictDoNothing();
-  console.log("  ✓ Leagues (5 starters)");
+  console.log(`  ✓ Leagues (${LEAGUE_LADDER.length} tiers)`);
 
   // Users
   const password = await bcrypt.hash("readmore123", 10);
