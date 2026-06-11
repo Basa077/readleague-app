@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { logSessionAction, savePositionAction } from "@/app/actions/reading";
+import { AssistantPanel } from "./AssistantPanel";
 
 const PdfReader = dynamic(() => import("./PdfReader").then((m) => m.PdfReader), { ssr: false });
 const EpubReader = dynamic(() => import("./EpubReader").then((m) => m.EpubReader), { ssr: false });
@@ -22,10 +23,12 @@ export function ReaderShell({
   book,
   citation,
   resume,
+  assistantEnabled = false,
 }: {
   book: Book;
   citation: string;
   resume: { currentPage: number; cfi: string | null; finished: boolean };
+  assistantEnabled?: boolean;
 }) {
   const router = useRouter();
   const [currentPage, setCurrentPage] = useState(resume.currentPage);
@@ -33,6 +36,16 @@ export function ReaderShell({
   const [seconds, setSeconds] = useState(0);
   const [saving, setSaving] = useState(false);
   const [pointsEarned, setPointsEarned] = useState<number | null>(null);
+
+  // AI reading companion: the latest selection feeds it context.
+  const [showAssistant, setShowAssistant] = useState(false);
+  const lastSelRef = useRef<string>("");
+  const onContext = useCallback((text: string) => {
+    const t = text.trim();
+    if (t) lastSelRef.current = t.slice(0, 1500);
+  }, []);
+  const currentPageRef = useRef(currentPage);
+  currentPageRef.current = currentPage;
 
   // One-time coach hint so the highlight/notes tools are discoverable.
   const [showHint, setShowHint] = useState(false);
@@ -134,6 +147,15 @@ export function ReaderShell({
           <div className="text-[10px] sm:text-xs" style={{ color: "var(--ink-3)" }}>{book.author}</div>
         </div>
         <div className="flex items-center gap-2 text-xs rl-mono">
+          {assistantEnabled && (
+            <button
+              onClick={() => setShowAssistant(true)}
+              className="rl-btn text-xs"
+              title="Ask Lia, the AI reading companion"
+            >
+              ✨ Ask&nbsp;AI
+            </button>
+          )}
           <span title="Active reading time">{minutesDisplay}</span>
           <span style={{ color: "var(--ink-3)" }}>·</span>
           <span title="Page">p {currentPage}{totalPages ? `/${totalPages}` : ""}</span>
@@ -157,6 +179,7 @@ export function ReaderShell({
             citation={citation}
             onCfi={handleCfi}
             onTotalPages={handleTotalPages}
+            onContext={onContext}
           />
         ) : (
           <PdfReader
@@ -165,6 +188,17 @@ export function ReaderShell({
             bookId={book.id}
             citation={citation}
             onPageChange={handlePageChange}
+            onContext={onContext}
+          />
+        )}
+
+        {showAssistant && (
+          <AssistantPanel
+            bookId={book.id}
+            bookTitle={book.title}
+            getExcerpt={() => lastSelRef.current}
+            getPage={() => currentPageRef.current}
+            onClose={() => setShowAssistant(false)}
           />
         )}
       </div>

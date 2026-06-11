@@ -22,6 +22,7 @@ export function EpubReader({
   citation,
   onCfi,
   onTotalPages,
+  onContext,
 }: {
   url: string;
   initialCfi?: string;
@@ -29,6 +30,7 @@ export function EpubReader({
   citation: string;
   onCfi: (cfi: string, page: number) => void;
   onTotalPages: (total: number) => void;
+  onContext?: (text: string) => void;
 }) {
   const [location, setLocation] = useState<string | number | null>(initialCfi ?? null);
   const renditionRef = useRef<Rendition | null>(null);
@@ -180,6 +182,7 @@ export function EpubReader({
             } catch {
               text = contents.window.getSelection()?.toString() ?? "";
             }
+            if (text.trim()) onContext?.(text);
             if (markerRef.current) {
               // Pen held → mark instantly and stay armed.
               contents.window.getSelection()?.removeAllRanges();

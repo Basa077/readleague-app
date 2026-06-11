@@ -38,12 +38,14 @@ export function PdfReader({
   bookId,
   citation,
   onPageChange,
+  onContext,
 }: {
   url: string;
   initialPage: number;
   bookId: number;
   citation: string;
   onPageChange: (page: number, total?: number) => void;
+  onContext?: (text: string) => void;
 }) {
   const [numPages, setNumPages] = useState<number>(0);
   const [pageNumber, setPageNumber] = useState<number>(Math.max(1, initialPage));
@@ -168,6 +170,7 @@ export function PdfReader({
   const onPageSelect = useCallback((page: number, wrapperEl: HTMLElement) => {
     const r = rectsFromSelection(wrapperEl);
     if (!r) { setSelection(null); return; }
+    if (r.text.trim()) onContext?.(r.text);
     if (marker) {
       // Pen is held → mark instantly and stay armed for the next selection.
       void createHighlight(page, r.rects, r.text, marker, false);
@@ -177,7 +180,7 @@ export function PdfReader({
     const x = Math.min(window.innerWidth - 120, Math.max(120, r.anchor.left + r.anchor.width / 2));
     const y = Math.max(72, r.anchor.top);
     setSelection({ page, rects: r.rects, text: r.text, x, y });
-  }, [marker, createHighlight]);
+  }, [marker, createHighlight, onContext]);
 
   const applyHighlight = useCallback(async (color: HighlightColorKey) => {
     const s = selection;

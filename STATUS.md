@@ -4,7 +4,31 @@
 > after a reboot, open Claude Code in this folder and say *"read STATUS.md, where did
 > we leave off?"* — that's all you need.
 
-_Last updated: 2026-06-09_
+_Last updated: 2026-06-11_
+
+## 🆕 Latest (2026-06-11) — in-reader AI companion ("Lia") + backlog pushed
+Typechecks + `npm run build` green. **Committed AND pushed** to GitHub — this
+session also pushed the previous backlog (highlight/read-aloud, open 20-tier
+ladder, bulk book importer were local-only; now on `origin/master`). **Not yet
+deployed (`vercel --prod`).**
+
+- **✨ Lia — an in-reader AI reading companion.** Inside any book, **✨ Ask AI**
+  opens a slide-in chat. Select a passage and Lia (powered by **Claude** via the
+  Anthropic SDK) explains it, summarises the story so far, defines hard words, or
+  quizzes you — answers stream in live and are grounded on the current book.
+  Quick actions: *Explain this · Summarise so far · Define a word · Quiz me.*
+  Works in both the EPUB and PDF readers (text selection feeds the excerpt).
+- **Files:** `src/lib/ai.ts` (persona/guardrails + gating), `src/app/api/assistant/route.ts`
+  (streaming endpoint), `AssistantPanel.tsx` (UI), wired through `ReaderShell.tsx`
+  + `page.tsx`; EPUB/PDF readers gained an `onContext` selection hook. Dependency
+  added: `@anthropic-ai/sdk`.
+- **Gated like Google/Paystack:** the button only appears once `ANTHROPIC_API_KEY`
+  is set, so shipping it dark is safe.
+- ⚠️ **Not run live yet** — no `ANTHROPIC_API_KEY` is set (local or Vercel), so Lia
+  has never actually answered. To switch it on follow **`SETUP-AI.md`** (add the
+  key locally + restart; for prod add the env var in Vercel + redeploy). Model
+  defaults to `claude-opus-4-8`; set `ASSISTANT_MODEL` to a cheaper Claude model
+  for high-volume Q&A.
 
 ## 🆕 Latest (2026-06-09, pt 2) — paid books via Paystack (MoMo + cards)
 Typechecks + `npm run build` green (paystack routes present). Schema pushed

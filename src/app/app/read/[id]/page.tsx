@@ -4,6 +4,7 @@ import { and, eq } from "drizzle-orm";
 import { requireUser } from "@/lib/auth";
 import { canUserReadBook } from "@/lib/unlock";
 import { buildCitation } from "@/lib/annotations";
+import { AI_ASSISTANT_ENABLED } from "@/lib/ai";
 import { ReaderShell } from "./ReaderShell";
 
 export default async function ReadPage(props: { params: Promise<{ id: string }> }) {
@@ -47,6 +48,7 @@ export default async function ReadPage(props: { params: Promise<{ id: string }> 
         cfi: progress?.cfi ?? null,
         finished: progress?.finished ?? false,
       }}
+      assistantEnabled={AI_ASSISTANT_ENABLED}
     />
   );
 }
